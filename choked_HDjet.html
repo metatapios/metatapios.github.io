@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Relativistic Jet Propagation Applet</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Plotly CDN -->
+  <script src="https://cdn.plot.ly/plotly-2.29.1.min.js"></script>
+  <!-- PapaParse CDN (CSV parsing) -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 12px; }
+    .container { display:flex; gap:16px; }
+    .controls { width: 360px; max-height: 90vh; overflow: auto; padding:12px; border:1px solid #ddd; border-radius:6px;}
+    .plots { flex:1; }
+    label{display:block;margin-top:8px;font-weight:600;}
+    input[type="number"], input[type="text"], select { width:100%; padding:6px; box-sizing:border-box; }
+    button { margin-top:8px; padding:8px 12px; }
+    .small { font-size:0.9em; color:#444; }
+    .row { display:flex; gap:8px; }
+  </style>
+</head>
+<body>
+  <h2>Relativistic Jet Propagation — interactive applet</h2>
+  <div class="container">
+    <div class="controls">
+      <h3>Density profile</h3>
+      <label for="densityChoice">Choose density profile</label>
+      <select id="densityChoice">
+        <option value="analytic">Analytic power-law (default)</option>
+        <option value="polytrope1">Polytropic star (toy)</option>
+        <option value="upload">Upload CSV (r [cm], rho [g/cm^3])</option>
+      </select>
+      <label for="fileInput">Upload CSV (if selected)</label>
+      <input id="fileInput" type="file" accept=".csv" />
+
+      <h3>Stellar parameters (analytic / built-in)</h3>
+      <label>Stellar mass Mstar [g]</label>
+      <input id="Mstar" type="number" value="3.0e34" step="1e33" />
+      <label>Stellar radius Rstar [cm]</label>
+      <input id="Rstar" type="number" value="3.49e12" step="1e11" />
+
+      <h3>Jet & run params</h3>
+      <label>Jet luminosity L_j [erg/s]</label>
+      <input id="Lj" type="number" value="1e51" />
+      <label>Initial opening angle θ0_j [deg]</label>
+      <input id="thetaDeg" type="number" value="5" />
+      <label>Injection radius r0 [cm]</label>
+      <input id="r0" type="number" value="1e9" />
+      <label>Engine lifetime t_e [s]</label>
+      <input id="te" type="number" value="30" step="1" />
+      <label>Tail speed fraction of c (0.0 - 1.0)</label>
+      <input id="v_tail_frac" type="number" value="0.995" step="0.001" />
+
+      <h3>Numerics / model</h3>
+      <label>Ns (head scaling)</label>
+      <input id="Ns" type="number" value="0.53" step="0.01" />
+      <label>alpha (analytical power-law index)</label>
+      <input id="alpha" type="number" value="2.5" step="0.1" />
+      <label>gamma_ad</label>
+      <input id="gamma_ad" type="number" value="1.3333333" step="0.01" />
+      <label>lambda_fac (post-choke)</label>
+      <input id="lambda_fac" type="number" value="1.0" step="0.1" />
+
+      <h3>Integrator / timestep</h3>
+      <label>t0 [s]</label><input id="t0" type="number" value="0" />
+      <label>tf [s]</label><input id="tf" type="number" value="250" />
+      <label>initial dt0 [s]</label><input id="dt0" type="number" value="1e-6" />
+      <label>dt_min [s]</label><input id="dtmin" type="number" value="1e-12" />
+      <label>eps_max (adaptive)</label><input id="epsmax" type="number" value="1e-5" />
+      <label>eps_min (adaptive)</label><input id="epsmin" type="number" value="1e-7" />
+      <div style="margin-top:8px;">
+        <button id="runBtn">Run simulation</button>
+        <button id="downloadBtn">Download CSV</button>
+        <button id="resetBtn">Reset plots</button>
+      </div>
+
+      <div style="margin-top:12px;">
+        <p class="small"><strong>Notes:</strong> Upload CSV as two columns `r,rho` in cgs; large files are handled by PapaParse. Plots are interactive (zoom, hover). To publish online, use GitHub Pages (static hosting).</p>
+      </div>
+    </div>
+
+    <div class="plots">
+      <div id="plot_radii" style="height:320px;"></div>
+      <div style="display:flex;gap:12px;">
+        <div id="plot_energy" style="height:300px;flex:1;"></div>
+        <div id="plot_vel" style="height:300px;flex:1;"></div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:12px;">
+        <div id="plot_Ltil" style="height:300px;flex:1;"></div>
+        <div id="plot_theta" style="height:300px;flex:1;"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/*
+  Browser app that solves the jet propagation problem (pre-choke -> tail catch -> post-choke)
+  Uses RK4 adaptive (full vs two half step) similar to Python code earlier.
+  Uses PapaParse for CSV upload and Plotly for plotting.
+*/
+
+// constants
+const c = 2.99792458e10;
+
+// helpers: logspace interp for uploaded density
+function buildDensityFromArray(arr) {
+  // arr: array of {r:..., rho:...} or [[r,rho],...]
+  // create arrays sorted
+  const data = arr.map(d => Array.isArray(d)? {r: +d[0], rho:+d[1]} : {r:+d.r, rho:+d.rho});
+  data.sort((a,b)=> a.r - b.r);
+  const rtab = data.map(d=>d.r);
+  const rhotab = data.map(d=>Math.max(d.rho, 1e-50));
+  // create log-log interpolation
+  return function(r) {
+    r = Math.max(r, rtab[0]*0.99999);
+    // binary search
+    let i = 0, j = rtab.length-1;
+    if (r <= rtab[0]) return rhotab[0];
+    if (r >= rtab[j]) return rhotab[j];
+    while (j - i > 1) {
+      let m = Math.floor((i+j)/2);
+      if (rtab[m] <= r) i = m; else j = m;
+    }
+    const x1 = Math.log(rtab[i]), x2 = Math.log(rtab[j]);
+    const y1 = Math.log(rhotab[i]), y2 = Math.log(rhotab[j]);
+    const x = Math.log(r);
+    const y = y1 + (y2-y1)*( (x - x1)/(x2-x1) );
+    return Math.exp(y);
+  }
+}
+
+// analytic density builder (toy)
+function makeAnalyticDensity(Mstar, Rstar, alpha, type_star=1) {
+  if (type_star === 1) {
+    // toy polytrope-like: rho ~ (r/R)^{-alpha} (1 - r/R)^3 with normalization
+    const n = 3.0;
+    // compute normalization term (approx) so integral ~ Mstar
+    // We'll do a simple normalization by sampling
+    const N=2000;
+    const rs = [];
+    for (let i=0;i<N;i++) rs.push(1e-8 + (Rstar-1e-8)*i/(N-1));
+    const raw = rs.map(r=> Math.pow(r/Rstar, -alpha) * Math.pow(1 - r/Rstar, n));
+    const integral = raw.reduce((a,b,i)=> a + b * (Rstar/(N-1)), 0);
+    const norm = Mstar / (4*Math.PI*integral* Math.pow(Rstar,3));
+    return function(r) {
+      if (r >= 0.99*Rstar) return 1e-21;
+      return Math.max(norm * Math.pow(r/Rstar, -alpha) * Math.pow(1 - r/Rstar, n), 1e-50);
+    }
+  } else {
+    return function(r){ return 1e-21; }
+  }
+}
+
+// UI elements
+const densityChoice = document.getElementById('densityChoice');
+const fileInput = document.getElementById('fileInput');
+const runBtn = document.getElementById('runBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const resetBtn = document.getElementById('resetBtn');
+
+function readUI() {
+  return {
+    Mstar: +document.getElementById('Mstar').value,
+    Rstar: +document.getElementById('Rstar').value,
+    Lj: +document.getElementById('Lj').value,
+    thetaDeg: +document.getElementById('thetaDeg').value,
+    r0: +document.getElementById('r0').value,
+    te: +document.getElementById('te').value,
+    v_tail_frac: +document.getElementById('v_tail_frac').value,
+    Ns: +document.getElementById('Ns').value,
+    alpha: +document.getElementById('alpha').value,
+    gamma_ad: +document.getElementById('gamma_ad').value,
+    lambda_fac: +document.getElementById('lambda_fac').value,
+    t0: +document.getElementById('t0').value,
+    tf: +document.getElementById('tf').value,
+    dt0: +Number(document.getElementById('dt0').value),
+    dtmin: +Number(document.getElementById('dtmin').value),
+    epsmax: +Number(document.getElementById('epsmax').value),
+    epsmin: +Number(document.getElementById('epsmin').value),
+  }
+}
+
+// global storage for last run
+let lastResults = null;
+let customDensityFunc = null;
+
+// allow CSV upload
+fileInput.addEventListener('change', (ev)=>{
+  const f = ev.target.files[0];
+  if (!f) return;
+  Papa.parse(f, {
+    header:false,
+    dynamicTyping:true,
+    skipEmptyLines:true,
+    complete: function(res){
+      // expect two columns r,rho
+      const data = res.data.map(row => [row[0], row[1]]);
+      customDensityFunc = buildDensityFromArray(data);
+      alert('Custom density loaded: ' + data.length + ' rows.');
+    },
+    error: function(err){ alert('CSV parse error: ' + err.message); }
+  });
+});
+
+// small math helpers
+function V_ell(rc, rh) { return (4.0/3.0)*Math.PI*(rh/2.0)*(rc*rc); }
+function rho_eval_radius(rc, rh) { return Math.sqrt(0.25*rh*rh + rc*rc); }
+function P_inj_formula(t, rc, rh, Lj) {
+  if (t <= 0 || rc <= 0 || rh <=0) return 0.0;
+  return 0.5*(Lj*t)/(2.0*Math.PI*rc*rc*rh);
+}
+function Sigma_j_of(Pc, rh, Lj, theta0, r0) {
+  if (Pc <= 0) return {sigma:2.0*Math.PI*r0*r0*(1.0 - Math.cos(theta0)), hat_z: Infinity};
+  const hat_z = Math.sqrt(Lj / (Math.PI * c * Pc)) + r0;
+  const sigma = (rh > 0.5*hat_z) ? (Lj * theta0*theta0 / (4.0 * c * Pc)) : (Math.PI * rh*rh * theta0*theta0);
+  return {sigma: sigma, hat_z: hat_z};
+}
+
+// RK4 utilities
+function rk4_step(f, t, y, h) {
+  const k1 = f(t, y);
+  const k2 = f(t + h/2, vectorAdd(y, scalarMul(k1, h/2)));
+  const k3 = f(t + h/2, vectorAdd(y, scalarMul(k2, h/2)));
+  const k4 = f(t + h, vectorAdd(y, scalarMul(k3, h)));
+  return vectorAdd(y, scalarMul(vectorAdd(vectorAdd(k1, scalarMul(k2,2)), vectorAdd(scalarMul(k3,2),k4)), h/6));
+}
+function vectorAdd(a,b){ return a.map((v,i)=>v + b[i]); }
+function scalarMul(v, s){ return v.map(x=>x*s); }
+
+// the core solver (JS port of the Python conservative solver + post-choke)
+function runSimulationUI() {
+  const ui = readUI();
+  const theta0 = ui.thetaDeg * Math.PI/180;
+  const densityMode = densityChoice.value;
+
+  // build density function
+  let rho_func;
+  if (densityMode === 'upload') {
+    if (!customDensityFunc) { alert('Please upload CSV density first.'); return; }
+    rho_func = customDensityFunc;
+  } else if (densityMode === 'analytic') {
+    rho_func = makeAnalyticDensity(ui.Mstar, ui.Rstar, ui.alpha, 1);
+  } else {
+    rho_func = makeAnalyticDensity(ui.Mstar, ui.Rstar, ui.alpha, 1);
+  }
+
+  // initial conds
+  const r_c0 = Math.max(1e-8, ui.r0 * Math.tan(theta0));
+  let y = [r_c0, ui.r0, 0.0]; // r_c, r_h, E_int
+  let t = ui.t0;
+  let dt = ui.dt0;
+  const dt_min = ui.dtmin;
+  const eps_max = ui.epsmax;
+  const eps_min = ui.epsmin;
+  const te = ui.te;
+  const v_tail = ui.v_tail_frac * c;
+  const Ns = ui.Ns;
+
+  // logs
+  const logs = {t:[], r_c:[], r_h:[], E_int:[], V:[], P_inj:[], P_from_E:[], beta_perp:[], beta_h:[], L_tilde:[], Sigma_j:[], hat_z:[], theta_spread_deg:[], E_inj_cum:[], E_KE_glob:[]};
+
+  let E_inj_cum = 0.0;
+  let caught = false;
+  let catch_info = null;
+  let step = 0;
+  const max_steps = 5e6;
+
+  // RHS for pre-choke (returns [dr_c/dt, dr_h/dt, dE_int/dt])
+  function RHS_pre(tt, Y) {
+    const rc = Y[0], rh = Y[1], Eint = Y[2];
+    const V = V_ell(Math.max(rc,1e-12), Math.max(rh,1e-12));
+    const P_from_E = (ui.gamma_ad - 1.0) * Eint / Math.max(V, 1e-30);
+
+    // Pc_active (injection pressure) used for velocities even after t >= te
+    const Pc_active = P_inj_formula(Math.max(tt,1e-12), rc, rh, ui.Lj);
+
+    const r_rho = rho_eval_radius(rc, rh);
+    const rho_local = Math.max(rho_func(Math.max(r_rho,1e-12)), 1e-300);
+
+    let u_perp = 0.0, beta_perp = 0.0;
+    if (Pc_active > 0) {
+      u_perp = Math.sqrt(Math.max(0.0, Pc_active / (rho_local * c*c)));
+      beta_perp = u_perp / Math.sqrt(1.0 + u_perp*u_perp);
+    }
+
+    const s = Sigma_j_of(Pc_active, rh, ui.Lj, theta0, ui.r0);
+    const sigma = s.sigma, hat_z = s.hat_z;
+    const rho_head = Math.max(rho_func(Math.max(rh,1e-12)), 1e-300);
+    const Ltil = (Ns*Ns * ui.Lj) / (sigma * rho_head * c*c*c + 1e-300);
+    const beta_h = (Ltil > 0) ? (1.0 / (1.0 + Math.sqrt(1.0/Ltil))) : 0.0;
+
+    const drc_dt = beta_perp * c;
+    const drh_dt = beta_h * c;
+
+    const dV_dt = (2.0/3.0)*Math.PI*(2.0*rc*drc_dt*rh + rc*rc*drh_dt);
+
+    const L_inj = (tt < te) ? ui.Lj : 0.0;
+    const dE_dt = L_inj - P_from_E * dV_dt;
+
+    return [drc_dt, drh_dt, dE_dt];
+  }
+
+  // main pre-choke loop
+  while (t < ui.tf && step < max_steps) {
+    const rc = y[0], rh = y[1], Eint = y[2];
+    const V = V_ell(Math.max(rc,1e-12), Math.max(rh,1e-12));
+    const P_from_E = (ui.gamma_ad - 1.0) * Eint / Math.max(V, 1e-30);
+    const Pc_active = P_inj_formula(Math.max(t,1e-12), rc, rh, ui.Lj);
+    const r_rho = rho_eval_radius(rc,rh);
+    const rho_local = Math.max(rho_func(Math.max(r_rho,1e-12)), 1e-300);
+
+    let u_perp=0.0, beta_perp=0.0;
+    if (Pc_active > 0) {
+      u_perp = Math.sqrt(Math.max(0.0, Pc_active / (rho_local * c*c)));
+      beta_perp = u_perp / Math.sqrt(1.0 + u_perp*u_perp);
+    }
+
+    const s = Sigma_j_of(Pc_active, rh, ui.Lj, theta0, ui.r0);
+    const sigma_now = s.sigma;
+    const hat_z_now = s.hat_z;
+    const rho_head = Math.max(rho_func(Math.max(rh,1e-12)), 1e-300);
+    const Ltil_now = (Ns*Ns * ui.Lj) / (sigma_now * rho_head * c*c*c + 1e-300);
+    const beta_h_now = (Ltil_now>0) ? (1.0 / (1.0 + Math.sqrt(1.0/Ltil_now))) : 0.0;
+
+    // injection energy update only while engine alive
+    if (t < te) E_inj_cum += ui.Lj * dt;
+
+    const E_KE_glob = Math.max(E_inj_cum - Eint, 0.0);
+
+    const theta_spread = (rh <= 0) ? 0.0 : 2.0 * Math.atan(Math.min(1e6, rc / Math.max(rh,1e-12)));
+    // log
+    logs.t.push(t); logs.r_c.push(rc); logs.r_h.push(rh); logs.E_int.push(Eint);
+    logs.V.push(V); logs.P_inj.push(Pc_active); logs.P_from_E.push(P_from_E);
+    logs.beta_perp.push(beta_perp); logs.beta_h.push(beta_h_now); logs.L_tilde.push(Ltil_now);
+    logs.Sigma_j.push(sigma_now); logs.hat_z.push(hat_z_now); logs.theta_spread_deg.push(theta_spread*180/Math.PI);
+    logs.E_inj_cum.push(E_inj_cum); logs.E_KE_glob.push(E_KE_glob);
+
+    // tail catch detection (after engine off)
+    if (t >= te && !caught) {
+      const r_tail = ui.r0 + v_tail * (t - te);
+      if (r_tail >= rh) {
+        caught = true;
+        catch_info = {t: t, r_h: rh, r_c: rc, V_catch: V, E_inj_cum: E_inj_cum, E_int: Eint};
+        console.log('Caught at', catch_info);
+        break;
+      }
+    }
+
+    // advance using RK4 full & half-step for adaptivity
+    const y_full = rk4_step(RHS_pre, t, y, dt);
+    const y_half1 = rk4_step(RHS_pre, t, y, dt/2.0);
+    const y_half2 = rk4_step(RHS_pre, t + dt/2.0, y_half1, dt/2.0);
+
+    const eps_r = Math.abs((y_half2[0] - y_full[0])/(Math.abs(y_half2[0]) + 1e-16));
+    const eps_h = Math.abs((y_half2[1] - y_full[1])/(Math.abs(y_half2[1]) + 1e-16));
+    const eps_e = Math.abs((y_half2[2] - y_full[2])/(Math.abs(y_half2[2]) + 1e-16));
+    const eps = Math.max(eps_r, eps_h, eps_e);
+
+    if (eps > eps_max) {
+      dt = Math.max(dt * 0.5, dt_min);
+      if (dt <= dt_min + 1e-30) {
+        t += dt; y = y_half2; step++;
+      } else {
+        continue;
+      }
+    } else {
+      if (eps < eps_min) dt = Math.min(dt * 1.1, 1.0);
+      dt = Math.min( Math.max(dt, dt_min), ui.tf - t );
+      t += dt; y = y_half2; step++;
+    }
+  } // end pre-choke
+
+  // if caught -> post-choke evolution using BM scaling with P = lambda*(gamma-1)*E_int/V_init
+  let postLogs = null;
+  if (caught) {
+    // initial conditions per user's request: E_tot = E_inj_cum (final injected energy)
+    const E_tot = catch_info.E_inj_cum;  // assign all injected energy to internal at start
+    // build kappa from catch
+    const kappa = (catch_info.r_h > 0) ? (catch_info.r_c / catch_info.r_h) : 0.1;
+    const vol_coef = (2.0/3.0) * Math.PI * kappa*kappa; // V = vol_coef * r_h^3
+
+    // K_pref for BM scaling (approx)
+    const K_pref = 2.0/3.0; // for gamma_ad ~ 4/3
+
+    // initialize pair [r_h, E_int]
+    let rh = catch_info.r_h;
+    let Eint = Math.max(E_tot, 1e-30);
+    let tpost = catch_info.t;
+    let dtp = dt; // continue with similar dt
+
+    postLogs = {t:[], r_h:[], E_int:[], V:[], P:[], u:[], beta:[]};
+    let stepsPost = 0;
+
+    function drh_dt_pair(rr, E_local) {
+      const Vlocal = vol_coef * Math.pow(rr,3);
+      const Ploc = (ui.gamma_ad - 1.0) * E_local / Math.max(Vlocal, 1e-30) * ui.lambda_fac;
+      const rho_loc = Math.max(rho_func(Math.max(rr,1e-12)), 1e-300);
+      let Gam2 = Math.max(0.0, Ploc / (K_pref * rho_loc * c*c));
+      let Gam = Math.sqrt(Gam2 || 1.0);
+      if (Gam < 1.0) Gam = 1.0;
+      const u = Math.sqrt(Math.max(0.0, Gam*Gam - 1.0));
+      const beta = u / Math.sqrt(1 + u*u);
+      return beta * c;
+    }
+
+    function RHS_post(tt, Y) {
+      const rh_loc = Y[0], E_loc = Y[1];
+      const drh = drh_dt_pair(rh_loc, E_loc);
+      const dVdt = 3.0 * vol_coef * rh_loc*rh_loc * drh;
+      const Ploc = (ui.gamma_ad - 1.0) * E_loc / Math.max(vol_coef * Math.pow(rh_loc,3), 1e-30) * ui.lambda_fac;
+      const dE = - Ploc * dVdt;
+      return [drh, dE];
+    }
+
+    while (tpost < ui.tf && stepsPost < 2e6) {
+      // log
+      const Vloc = vol_coef * Math.pow(rh,3);
+      const Ploc = (ui.gamma_ad - 1.0) * Eint / Math.max(Vloc, 1e-30) * ui.lambda_fac;
+      const rho_local = Math.max(rho_func(Math.max(rh,1e-12)), 1e-300);
+      let Gam2 = Math.max(0.0, Ploc / (K_pref * rho_local * c*c));
+      let Gam = Math.sqrt(Gam2 || 1.0);
+      if (Gam < 1.0) Gam = 1.0;
+      const u = Math.sqrt(Math.max(0.0, Gam*Gam - 1.0));
+      const beta = u / Math.sqrt(1 + u*u);
+
+      postLogs.t.push(tpost); postLogs.r_h.push(rh); postLogs.E_int.push(Eint);
+      postLogs.V.push(Vloc); postLogs.P.push(Ploc); postLogs.u.push(u); postLogs.beta.push(beta);
+
+      // advance with RK4 pair
+      const y_full = rk4_step(RHS_post, tpost, [rh, Eint], dtp);
+      const y_half1 = rk4_step(RHS_post, tpost, [rh, Eint], dtp/2.0);
+      const y_half2 = rk4_step(RHS_post, tpost + dtp/2.0, y_half1, dtp/2.0);
+
+      const eps_r = Math.abs((y_half2[0] - y_full[0])/(Math.abs(y_half2[0]) + 1e-16));
+      const eps_e = Math.abs((y_half2[1] - y_full[1])/(Math.abs(y_half2[1]) + 1e-16));
+      const eps = Math.max(eps_r, eps_e);
+
+      if (eps > eps_max) {
+        dtp = Math.max(dtp * 0.5, dt_min);
+        if (dtp <= dt_min + 1e-30) {
+          tpost += dtp; rh = y_half2[0]; Eint = y_half2[1]; stepsPost++;
+        } else {
+          continue;
+        }
+      } else {
+        if (eps < eps_min) dtp = dtp*1.1;
+        dtp = Math.min(Math.max(dtp, dt_min), ui.tf - tpost);
+        tpost += dtp; rh = y_half2[0]; Eint = y_half2[1]; stepsPost++;
+      }
+
+      // stop if reach stellar surface
+      if (rh >= ui.Rstar) break;
+    }
+  }
+
+  // produce plots
+  plotResults(logs, postLogs);
+
+  // store results for download
+  lastResults = {pre: logs, post: postLogs};
+}
+
+// plotting function (Plotly)
+function plotResults(pre, post) {
+  // plot radii
+  const tpre = pre.t;
+  const trace_rh = { x: tpre, y: pre.r_h, name:'r_h (pre)', mode:'lines' };
+  const trace_rc = { x: tpre, y: pre.r_c, name:'r_c (pre)', mode:'lines' };
+  const dataR = [trace_rh, trace_rc];
+  if (post) dataR.push({x: post.t, y: post.r_h, name:'r_h (post)', mode:'lines', line:{dash:'dash'}});
+  Plotly.newPlot('plot_radii', dataR, {title:'Radii', yaxis:{type:'log'}});
+
+  // energies
+  const trace_Einj = { x: tpre, y: pre.E_inj_cum, name:'E_inj_cum' };
+  const trace_EKE = { x: tpre, y: pre.E_KE_glob, name:'E_KE_global' };
+  const trace_Eint_implied = { x: tpre, y: pre.E_inj_cum.map((v,i)=>Math.max(v - pre.E_KE_glob[i], 0)), name:'E_int (implied)'};
+  const dataE = [trace_Einj, trace_Eint_implied, trace_EKE];
+  if (post) dataE.push({x: post.t, y: post.E_int, name:'E_int (post)', line:{dash:'dash'}});
+  Plotly.newPlot('plot_energy', dataE, {title:'Energies (erg)', yaxis:{type:'log'}});
+
+  // velocities
+  const trace_bh = { x: tpre, y: pre.beta_h, name:'beta_h' };
+  const trace_bp = { x: tpre, y: pre.beta_perp, name:'beta_perp' };
+  Plotly.newPlot('plot_vel', [trace_bh, trace_bp], {title:'Velocities', yaxis:{type:'linear'}});
+
+  // Ltilde
+  const trace_Lt = { x: tpre, y: pre.L_tilde, name:'L_tilde' };
+  Plotly.newPlot('plot_Ltil', [trace_Lt], {title:'L_tilde', yaxis:{type:'log'}});
+
+  // theta spread
+  const trace_theta = { x: tpre, y: pre.theta_spread_deg, name:'theta spread [deg]' };
+  Plotly.newPlot('plot_theta', [trace_theta], {title:'Angular spread (deg)', yaxis:{range:[0,180]}});
+
+}
+
+// CSV download
+downloadBtn.addEventListener('click', ()=>{
+  if (!lastResults) { alert('Run first.'); return; }
+  const pre = lastResults.pre;
+  const post = lastResults.post;
+  // assemble CSV header and rows (pre first, then post)
+  let csv = 'phase,t,r_c,r_h,E_int,V,P_inj,P_from_E,beta_perp,beta_h,L_tilde,Sigma_j,hat_z,theta_deg,E_inj_cum,E_KE_glob\n';
+  for (let i=0;i<pre.t.length;i++) {
+    const row = [ 'pre', pre.t[i], pre.r_c[i], pre.r_h[i], pre.E_int[i], pre.V[i], pre.P_inj[i], pre.P_from_E[i], pre.beta_perp[i], pre.beta_h[i], pre.L_tilde[i], pre.Sigma_j[i], pre.hat_z[i], pre.theta_spread_deg[i], pre.E_inj_cum[i], pre.E_KE_glob[i] ];
+    csv += row.join(',') + '\n';
+  }
+  if (post) {
+    csv += 'post,t,r_h,E_int,V,P,u,beta\n';
+    for (let i=0;i<post.t.length;i++) {
+      const row = ['post', post.t[i], post.r_h[i], post.E_int[i], post.V[i], post.P[i], post.u[i], post.beta[i]];
+      csv += row.join(',') + '\n';
+    }
+  }
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'jet_results.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+});
+
+// run button
+runBtn.addEventListener('click', ()=> {
+  runBtn.disabled = true;
+  setTimeout(()=>{ // small defer so browser updates button state
+    try{ runSimulationUI(); }
+    catch(e){ alert('Error during run: ' + e); console.error(e); }
+    runBtn.disabled = false;
+  }, 10);
+});
+
+// reset plots
+resetBtn.addEventListener('click', ()=>{
+  Plotly.purge('plot_radii'); Plotly.purge('plot_energy'); Plotly.purge('plot_vel'); Plotly.purge('plot_Ltil'); Plotly.purge('plot_theta');
+  lastResults = null;
+});
+
+</script>
+</body>
+</html>
