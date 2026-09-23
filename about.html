@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About – Matteo Pais</title>
+  <meta name="description" content="About Matteo Pais: piano, swimming and travel." />
+  <meta name="author" content="Matteo Pais" />
+  <meta property="og:site_name" content="Matteo Pais" />
+  <meta property="og:title" content="About – Matteo Pais" />
+  <meta property="og:description" content="About Matteo Pais: piano, swimming and travel." />
+  <meta property="og:image" content="https://metatapios.github.io/me.jpg" />
+  <meta property="og:url" content="https://metatapios.github.io/about.html" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&amp;family=Yanone+Kaffeesatz:wght@400;700&amp;display=swap" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" integrity="sha512-KfkfwYDsLkIlwQp6LFnl8zNdLGxu9YAA1QvwINks4PhcElQSvqcyVLLD9aMhXd13uQjoXtEKNosOWaZqXgel0g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="main.css" />
+  <link rel="stylesheet" href="site.css" />
+  <!-- Google Analytics (GA4) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-FQSKMZWFDB"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-FQSKMZWFDB');
+  </script>
+</head>
+
+<body id="about" class="home">
+  <header id="banner" class="body">
+    <h1><a href="index.html">Matteo Pais <strong>– Computational Astrophysicist</strong></a></h1>
+    <nav>
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="research.html">Research</a></li>
+        <li><a href="data-code.html">Data &amp; Code</a></li>
+        <li><a href="cv.html">CV</a></li>
+        <li><a href="blog.html">Blog</a></li>
+        <li class="active"><a href="about.html">About</a></li>
+      </ul>
+    </nav>
+  </header><!-- /#banner -->
+
+  <section id="content" class="body">
+<h2>About me</h2>
+<p class="lead">A few things about me that have nothing to do with relativistic jets – or almost.</p>
+
+<h3><i class="fa-solid fa-music"></i> Piano</h3>
+<p>I play the piano. It is my favourite way to switch off after a day spent debugging simulations – and, like a good simulation,
+a difficult piece only converges after a lot of patience and many, many iterations.</p>
+
+<h3><i class="fa-solid fa-person-swimming"></i> Swimming</h3>
+<p>I swim to keep body and mind in shape. Lap after lap is the closest I get to a steady, laminar flow:
+no shocks, no instabilities – on a good day.</p>
+
+<h3><i class="fa-solid fa-earth-europe"></i> Travel</h3>
+<p>Research has made me a bit of a nomad: I have lived in Sardinia (Cagliari), Germany (Heidelberg and Potsdam), Israel (Jerusalem)
+and now in Veneto (Padova), and talked about jets and cosmic rays from Kyoto, Tokyo and Shanghai to Geneva, Copenhagen, Dublin and Chania.
+I love discovering new places, their food and their languages – I speak Italian, English, German, some French and Spanish, and a little
+Hebrew and Japanese.</p>
+<p>Travel highlight so far: winning a Pochita plushie at a crane game in Shibuya, Tokyo – on my very first try.</p>
+
+<h3><i class="fa-solid fa-mug-hot"></i> Fuel</h3>
+<p>Science, code and anything else that requires a high dose of caffeinated beverages.</p>
+  </section>
+
+  <section id="extras" class="body">
+    <div class="blogroll">
+      <h2>Find me on</h2>
+      <ul>
+        <li><a href="https://ui.adsabs.harvard.edu/search/fq=%7B!type%3Daqp%20v%3D%24fq_database%7D&fq_database=(database%3Aastronomy%20OR%20database%3Aphysics)&p_=0&q=%3Dauthor%3A%22Pais%2C%20Matteo%22%20OR%20%3Dauthor%3A%22Pais%2C%20M%22%20year%3A2018-&sort=date%20desc%2C%20bibcode%20desc">NASA/ADS</a></li>
+        <li><a href="https://arxiv.org/search/?query=Pais%2C+Matteo&searchtype=author">arXiv</a></li>
+        <li><a href="https://scholar.google.it/citations?user=K6QO73EAAAAJ&hl=en&oi=ao">Google Scholar</a></li>
+        <li><a href="https://inspirehep.net/authors/1820565">INSPIRE</a></li>
+        <li><a href="https://orcid.org/0000-0002-4243-3889">ORCID</a></li>
+        <li><a href="https://github.com/metatapios">GitHub</a></li>
+      </ul>
+    </div><!-- /.blogroll -->
+  </section><!-- /#extras -->
+
+  <footer id="contentinfo" class="body">
+    <address id="about" class="vcard body">
+      Theme based on <a href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">notmyidea</a> (<a href="https://getpelican.com/">Pelican</a>).
+      &copy; 2026 Matteo Pais. Last updated: September 2026.
+    </address><!-- /#about -->
+  </footer><!-- /#contentinfo -->
+
+  <script>
+    // Assemble e-mail links at runtime to keep addresses away from simple scrapers
+    document.querySelectorAll('a.eml').forEach(function (a) {
+      var addr = a.dataset.u + '@' + a.dataset.d;
+      a.href = 'mailto:' + addr;
+      a.textContent = addr;
+    });
+  </script>
+</body>
+</html>

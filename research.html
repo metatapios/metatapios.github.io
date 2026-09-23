@@ -1,175 +1,239 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="generator" content="Pelican" />
-    <meta name="title" content="Matteo Pais" />
-    <meta name="description" content="Matteo Pais – Computational Astrophysicist" />
-    <meta name="og:site_name" content="Matteo Pais" />
-    <meta name="og:title" content="Matteo Pais" />
-    <meta name="og:description" content="Computational Astrophysicist" />
-    <meta name="og:image" content="/images/profile.jpg" />
-    <meta name="og:url" content="https://metatapios.github.io/" />
-    <link rel="stylesheet" href="main.css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Research – Matteo Pais</title>
+  <meta name="description" content="Research of Matteo Pais: relativistic jets in neutron star mergers and collapsars, shock breakout, choked jets, neutrinos, kilonovae and cosmic-ray acceleration." />
+  <meta name="author" content="Matteo Pais" />
+  <meta property="og:site_name" content="Matteo Pais" />
+  <meta property="og:title" content="Research – Matteo Pais" />
+  <meta property="og:description" content="Research of Matteo Pais: relativistic jets in neutron star mergers and collapsars, shock breakout, choked jets, neutrinos, kilonovae and cosmic-ray acceleration." />
+  <meta property="og:image" content="https://metatapios.github.io/me.jpg" />
+  <meta property="og:url" content="https://metatapios.github.io/research.html" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&amp;family=Yanone+Kaffeesatz:wght@400;700&amp;display=swap" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" integrity="sha512-KfkfwYDsLkIlwQp6LFnl8zNdLGxu9YAA1QvwINks4PhcElQSvqcyVLLD9aMhXd13uQjoXtEKNosOWaZqXgel0g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="main.css" />
+  <link rel="stylesheet" href="site.css" />
+  <!-- Google Analytics (GA4) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-FQSKMZWFDB"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-FQSKMZWFDB');
+  </script>
 </head>
 
-<body id="index" class="home">
-        <header id="banner" class="body">
-                <h1><a href="/">Matteo Pais <strong>– Computational Astrophysicist</strong></a></h1>
-                <nav><ul>
-                    <li><a href="/">Home</a></li>
-                    <li><a href="/research">Research</a></li>
-                    <li><a href="/data-code">Data & Code</a></li>
-                    <li><a href="/cv">CV</a></li>
-                    <li><a href="/archives">Blog</a></li>
-                    <li><a href="/personal">About</a></li>
-                </ul></nav>
-        </header><!-- /#banner -->
-<section id="content" class="body">
-    <!-- <h1 class="entry-title">Research</h1> -->
-    
-    <p><strong>This page is still under construction!</strong></p>
-<p>My research focuses on <strong>special</strong> and <strong>general</strong> relativistic simulations involving <strong>jets</strong> and <strong>mergers</strong>.
-In the era of large computational power (supercomputing), GPU-accelerated codes and AI, we can arrive to 
-an unprecedented level of detail and physical completeness in our numerical simulations.
-Resolving the small details of the turbulent cascade, increasing the computational efficiency of radiative transport, 
-and the unification of small and large scales in our simulations help us to understand in depth the physical processes leading to
-the formation of relativistic jets self-consistently and the synthesisation of heavy elements.
-Furthermore, the advancement in observations and the next big surveys like ULTRASAT, devoted to record high-energy events,
-will regale us with a powerhouse of statistics and multi-messenger data. 
-As a cherry on the top, the new generation of gravitational wave (GW) interferometers like the proposed Einstein Telescope, will be able 
-to capture - thanks to their improved sensitivity - many more events and insights about the GW emission from mergers, black holes, etc.. 
-Future looks exciting for this branch of astrophysics and hopefully our simulations will help to shed a light in the understanding of the high-energy universe.</p>
+<body id="research" class="home">
+  <header id="banner" class="body">
+    <h1><a href="index.html">Matteo Pais <strong>– Computational Astrophysicist</strong></a></h1>
+    <nav>
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li class="active"><a href="research.html">Research</a></li>
+        <li><a href="data-code.html">Data &amp; Code</a></li>
+        <li><a href="cv.html">CV</a></li>
+        <li><a href="blog.html">Blog</a></li>
+        <li><a href="about.html">About</a></li>
+      </ul>
+    </nav>
+  </header><!-- /#banner -->
+
+  <section id="content" class="body">
+<h2>Research</h2>
+<p class="lead">I am a theoretical–computational astrophysicist. I build analytic and semi-analytic models and push them into the
+strongly non-linear regime with numerical experiments on supercomputers, using codes parallelised on many CPUs and GPUs.</p>
+
+<p>My work sits in high-energy astrophysics and revolves around three ingredients:</p>
+<ol>
+  <li><strong>compact objects</strong> – neutron stars and black holes – and their birth in catastrophic events such as
+      <strong>binary neutron star (BNS) mergers</strong> and the collapse of massive stars;</li>
+  <li><strong>strong shocks</strong> in collimated, magnetised, relativistic plasma outflows – <strong>jets</strong>;</li>
+  <li>the <strong>acceleration of particles</strong> at those shocks up to TeV–PeV energies – <strong>cosmic rays</strong> – and the
+      photons and neutrinos they produce.</li>
+</ol>
+<p>These ingredients appear both in quasi-steady systems that live for decades or centuries, like supernova remnants and microquasars,
+and in <strong>transients</strong> lasting from a fraction of a minute to tens of days, like gamma-ray bursts (GRBs) and kilonovae.
+My main tools are the relativistic MHD code <a href="https://plutocode.ph.unito.it/">PLUTO</a> and its GPU version gPLUTO,
+the moving-mesh code <a href="https://arepo-code.org/">AREPO</a>, and my own post-processing and radiative codes in Python and C
+(see <a href="data-code.html">Data &amp; Code</a>).</p>
+
 <hr>
-<!-- My papers and contributions can be put into several (overlapped) categories. -->
 
-<!-- - [TOC] -->
+<h2>Current research</h2>
 
-<h3 id="small-scale-challenges-to-cosmology">Small-scale challenges to cosmology</h3>
-<ul>
-<li>
-<p>Recent observations reported a puzzling <strong>dearth of dark matter</strong> (DM) in a significant fraction of dwarf galaxies and high-z massive galaxies, raising a major challenge to the galaxy formation theory within the standard cold DM (CDM) cosmology. Any plausible solution to the galactic-scale challenges demands a more thorough understanding of the interplay between the DM halos and the baryons (stars and gas) and galaxy mergers. </p>
-</li>
-<li>
-<p>As a major step forward, our recent work <button class='paper' id="2023MNRAS.518.5356L">(Li+ 2023)</button>
-proposed the <strong>first self-consistent analytical model</strong>, CuspCore2, for the <strong>halos response</strong> to fast gas outflow or accretion.
-We then show how to form dark-matter deficient cores in high-z massive galaxies by episodic gas outflows and dynamical heating by mergers
-<button class="paper" data-tippy-content="CuspCore2: Modeling the formation of high-z massive cores &lt;br&gt; Li, Z., Dekel, A., Mandelker, N., Jiang, F.+"> (Li+ in prep.) </button>.</p>
-</li>
-</ul>
-<!-- 
-- We also tested the dynamical modeling methods for the Core-Cusp Problem with simulations <button class='paper' id="2022ApJ...941..108W">(Wang+ 2022)</button>.
-Is the Core-cusp Problem a Matter of Perspective? Jeans Anisotropic Modeling against Numerical Simulations 
+<div class="research-block">
+<h3>The GW–EM delay and shock breakout in neutron star mergers</h3>
+<p>In GW170817 the gamma-ray burst arrived <strong>≈1.74 s after the gravitational-wave signal</strong>. Because the jet may only be launched
+after the hypermassive neutron star left by the merger collapses into a black hole, this delay indirectly probes the collapse time and
+the <strong>equation of state</strong> of nuclear matter. With R. Ciolfi and A. Pavan, I run 2D and 3D relativistic MHD simulations with PLUTO,
+initialised from realistic post-merger environments taken from general-relativistic MHD merger simulations and including the fast outer
+tail of the ejecta, which controls the optical depth and the breakout. Varying the two key parameters – <strong>jet launch time</strong> and
+<strong>jet power</strong> – I follow the shock up to the photosphere with a relativistic breakout condition, accounting for geometry,
+light-travel time and relativistic beaming.</p>
+<p>The delay turns out to depend only weakly on viewing angle and ejecta opacity when the breakout happens near the outer edge of the
+ejecta, and a late-launched, moderate-luminosity jet best reproduces GW170817. I also compute bolometric <strong>shock-breakout light curves</strong>
+with a tomographic reconstruction over equal-arrival-time surfaces including relativistic Doppler effects.</p>
+<p><em>Next:</em> an end-to-end <strong>semi-analytic model calibrated on simulations</strong> – jet–cocoon shock shape, oblique breakout and
+multi-frequency light curves (afterglow included) versus viewing angle – to extract quasi-universal scaling relations that can serve as
+templates for future joint GW–EM detections.</p>
+<p class="refs"><i class="fa-solid fa-file-lines"></i> <a href="https://arxiv.org/abs/2606.29515">Pais, Ciolfi &amp; Pavan 2026, A&amp;A</a></p>
+</div>
 
-- We found that the Milky Way satellites are consistent with hydrodynamical simulations (EAGLE) in terms of velocity distribution <button class='paper' id="2020ApJ...894...10L">(Li+ 2020a)</button>.
- -->
+<div class="research-block">
+<h3>Jets in the aftermath of binary neutron star mergers</h3>
+<p>At the Hebrew University, with T. Piran, Y. Lyubarsky, K. Kiuchi and M. Shibata, I followed Poynting-flux-dominated jets through the ejecta
+of a one-second-long GR-MHD, neutrino-radiation merger simulation. Balancing the ejecta pressure against the jet magnetic pressure gives an
+approximately parabolic, <strong>collimated jet</strong> whose opening angle depends on its luminosity. A <strong>low-density polar cavity</strong>,
+carved by angular-momentum conservation after the merger, turns out to be essential for the jet to emerge – otherwise it is choked by the dense,
+neutron-rich material.</p>
+<p>We then injected jets with different opening angles, luminosities and launch times (0.1 s and 1 s, the latter consistent with GW170817) into
+post-merger snapshots, deriving the <strong>minimum engine duration needed for breakout</strong>. Comparing synthetic afterglow light curves with the
+radio data of GW170817 favours a jet of ~3×10<sup>49</sup> erg, active for 0.5 s, with a 5°–7° opening angle and launched 1 s after merger –
+an <strong>upper limit on the jet energy</strong> – and yields a generalised degeneracy relation between afterglow parameters and viewing angle.</p>
+<p class="refs"><i class="fa-solid fa-file-lines"></i> <a href="https://arxiv.org/abs/2211.09135">Pais et al. 2023, ApJL</a> · <a href="https://arxiv.org/abs/2407.19002">Pais et al. 2024, ApJ</a></p>
+</div>
 
-<h3 id="galaxy-formation-at-cosmic-dawn">Galaxy formation at cosmic dawn</h3>
-<ul>
-<li>Recent observations by JWST reported a puzzling excess of luminous galaxies in the early Universe at z~10. We propose a solution involving <strong>feedback-free starbursts (FFB)</strong> as a potential paradigm shift for early galaxy formation <button class='paper' id="2023MNRAS.523.3201D">(Dekel+ 2023)</button>.
-The model prediction shows a good consistency with the present observations in general <button class='paper' id="2023arXiv231114662L">(Li+ 2024)</button>.</li>
-</ul>
-<h3 id="orbits-and-masses-of-satellite-galaxies">Orbits and masses of satellite galaxies</h3>
-<ul>
-<li>
-<p>Starting from cosmological simulations, we built a universal and accurate model for the <strong>initial orbit distribution</strong> <button class='paper' id="2020ApJ...905..177L">(Li+ 2020b)</button> and the <strong>specific merger rate</strong> <button class='paper' id="2022ApJ...929..120D">(Dong+ 2022)</button> of infalling satellite galaxies, unifying its mass and redshift dependence. This model can help us better understand the halo structure and serve as the initial condition for semi-analytic models of halo/galaxy formation. </p>
-</li>
-<li>
-<p>We showed that satellite galaxies of different galactic halos approximately follow the same <strong>present-day orbit distribution</strong> when properly scaled. On this basis, we constructed a universal satellite phase-space distribution function (DF) that is fully consistent with simulations, providing a realistic starting point for dynamical modeling using satellites. <button class='paper' id="2017ApJ...850..116L">(Li+ 2017</button>, <button class='paper' id="2019ApJ...886...69L">2019)</button>.</p>
-</li>
-</ul>
-<h3 id="dynamical-mass-and-boundary-of-the-milky-way">Dynamical mass and boundary of the Milky Way</h3>
-<ul>
-<li>
-<p>The virial mass and density profile of our Milky Way (MW) halo are crucial to many astrophysical studies. Most of the methods that have been proposed to constrain the MW mass profile make use of dynamical tracers (see our review paper <button class='paper' id="2020SCPMA..6309801W">Wang+ 2020</button>).</p>
-</li>
-<li>
-<p>Based on scaling relations of satellite galaxy kinematics learned from simulations <button class='paper' id="2017ApJ...850..116L">(Li+ 2017</button>, <button class='paper' id="2019ApJ...886...69L">2019)</button>, we obtained the <strong>current best constraints of the MW mass profile</strong> up to 300 kpc <button class='paper' id="2020ApJ...894...10L">(Li+ 2020a)</button>. We also demonstrated how the observed satellite kinematics can be used to test the galaxy formation models. Specifically, we showed that the MW satellite kinematics matches the EAGLE simulation better than the semi-analytical models. </p>
-</li>
-<li>
-<p>We proposed a novel <strong>data-driven DF</strong> method that can infer the dynamical mass with the optimal statistical efficiency. Unlike conventional DF-like methods, it is independent of ad-hoc functional forms or orbital libraries. We applied this new method to measure the MW potential using satellites and globular clusters as tracers <button class="paper" data-tippy-content="Dynamical modeling with data-driven distribution function &lt;br&gt; Li, Z., Han, J., Wang, W., Qian, Y.,+">(Li+ in prep.)</button>.</p>
-</li>
-<li>
-<p>Following recent progress in characterizing the halo boundary (<a href="https://ui.adsabs.harvard.edu/abs/2021MNRAS.503.4250F/">Fong &amp; Han 2020</a>) and using the motion of nearby dwarf galaxies, we first measured the <strong>depletion radius</strong> of the MW halo, a natural boundary separating a growing halo from the receding environment <button class='paper' id="2021ApJ...915L..18L">(Li &amp; Han 2021)</button>. The turnaround radius and the masses enclosed within the two radii are also estimated.</p>
-</li>
-<li>
-<p>We compared the information content of <strong>different dynamical tracers</strong> and found that
-the satellite galaxies are the best tracers for galactic halos <button class='paper' id="2020IAUS..353..109H">(Han+ 2020)</button>
-and galaxy clusters <button class='paper' id="2021MNRAS.505.3907L">(Li, Q.+ 2021)</button>, because they convey less redundant information.</p>
-</li>
-</ul>
-<h3 id="machine-learning-and-astronomy">Machine learning and astronomy</h3>
-<ul>
-<li>
-<p>The <strong>Gaussian process</strong> (GP) is a popular data-driven method for nonlinear regression; however, it is vulnerable to outlier contamination. We proposed a novel robust GP algorithm based on iterative trimming <button class='paper' id="2021A&C....3600483L">(ITGP, Li+ 2021)</button> <a href="https://github.com/syrte/robustgp">[code]</a>, which significantly outperforms the standard GP and its popular robust variants in most test cases with contaminated data. The advantages of robustness, efficiency, and computational tractability make it useful to a wide range of problems.</p>
-</li>
-<li>
-<p>The proposed ITGP algorithm can precisely determine the main-sequence ridgeline of observed <strong>star clusters</strong> in the color-magnitude diagram, crucial for calibrating theoretical stellar models and accurately inferring cluster properties.
-It enables precise modeling of <strong>unresolved binaries</strong> in open clusters with unprecedented accuracy and precision, providing clear observational evidence of dynamical evolution <button class='paper' id="2020ApJ...901...49L">(Li, L.+ 2020)</button>.</p>
-</li>
-<li>
-<p>We proposed a <strong>random forest</strong> machine learning approach to determine the accreted stellar mass fractions of central galaxies, based on various dark matter halo and galaxy features <button class='paper' id="2022MNRAS.515.3938S">(Shi+ 2022)</button>.</p>
-</li>
-</ul>
-<script src="https://unpkg.com/@popperjs/core@2"></script>
-<script src="https://unpkg.com/tippy.js@6"></script>
-<script type="text/javascript" src="files/paperlist.json"></script>
-<script type="text/javascript">
-function loadpapers() {
-    var divs = document.getElementsByClassName("paper");
-    for(var i = 0;i < divs.length; i++) {
-        if (!(divs[i].hasAttribute('id') && divs[i].id in paperlist)) {continue;}
-        var id = divs[i].id;
-        var title = paperlist[id].title;
-        var author = paperlist[id].author;
-        var year = paperlist[id].year;
-        var url = paperlist[id].url;
-        var content = title + ' <a href="' + url + '">[ADS]</a><br>' + author;
-        divs[i].setAttribute("data-tippy-content", content);
-    }
-}
-</script>
-<script>
-loadpapers()
-tippy('.paper', {
-  // trigger: 'click',
-  interactive: true,
-  allowHTML: true,
-});
-</script>
+<div class="research-block">
+<h3>Choked jets, collapsars and low-luminosity GRBs</h3>
+<p>Broad absorption lines in the early spectra of many stripped-envelope (Type Ib/c) supernovae require fast material that becomes optically thin
+very quickly – naturally explained by the cocoon of a jet that, in most cases, never makes it out of the star. With T. Piran and E. Nakar
+I showed that jets choked near the stellar edge drive outflows with an energy–velocity tail spanning several orders of magnitude, whose energy
+<strong>depends only on the ratio between the shocked-cocoon volume and the stellar volume</strong>, for a wide range of jet opening angles and
+luminosities and independently of the progenitor. This quasi-universal relation lets spectroscopic campaigns infer jet properties even when
+no GRB is seen. I also explore <strong>low-luminosity GRBs</strong> as the breakout of a mildly relativistic cocoon from stars with extended
+envelopes, computing the phase velocity of the breakout along the stellar surface and the resulting optical light curve.</p>
+<p class="refs"><i class="fa-solid fa-file-lines"></i> <a href="https://arxiv.org/abs/2208.14459">Pais, Piran &amp; Nakar 2023, MNRAS</a></p>
+</div>
 
-</section>
-        <section id="extras" class="body">
-                <div class="blogroll">
-                        <h2>Find me on</h2>
-                        <ul>
-                            <li><a href="https://ui.adsabs.harvard.edu/search/fq=%7B!type%3Daqp%20v%3D%24fq_database%7D&fq_database=(database%3Aastronomy%20OR%20database%3Aphysics)&p_=0&q=%3Dauthor%3A%22Pais%2C%20Matteo%22%20OR%20%3Dauthor%3A%22Pais%2C%20M%22%20year%3A2018-&sort=date%20desc%2C%20bibcode%20desc">NASA/ADS</a></li>
-                            <li><a href="https://ui.adsabs.harvard.edu/search/p_=0&q=orcid%3A0000-0002-4243-3889&sort=date%20desc%2C%20bibcode%20desc">arXiv</a></li>
-                            <li><a href="https://scholar.google.it/citations?user=K6QO73EAAAAJ&hl=en&oi=ao">Google Scholar</a></li>
-                            <li><a href="https://inspirehep.net/authors/1820565">INSPIRE</a></li>
-                            <li><a href="https://orcid.org/0000-0002-4243-3889">ORCID</a></li>
-                            <li><a href="https://github.com/metatapios">GitHub</a></li>
-                        </ul>
-                </div><!-- /.blogroll -->
-        </section><!-- /#extras -->
+<div class="research-block">
+<h3>Choked jets as hidden neutrino sources</h3>
+<p>The origin of the astrophysical high-energy neutrino flux is still unclear: only part of it is attributed to a sub-dominant Galactic
+component and to NGC 1068, and neither ANTARES nor IceCube found significant associations with GRBs – pointing to sources that are
+<strong>dark in gamma rays</strong>. Jets choked inside massive stellar envelopes are ideal candidates: gamma rays are trapped by the huge optical
+depth while neutrinos escape almost unattenuated. The cocoon-driven shock can still break out of the star with an X-ray/UV flash followed by
+day-long UV–optical emission, within reach of ULTRASAT or wide-field facilities such as MezzoCielo.</p>
+<p>With S. Celli, A. Zegarelli and E. Peretti, and now within <strong>KM3NeT</strong>, I study when jets remain choked in blue and red
+supergiants and whether their shocks can accelerate protons that produce neutrinos through photo-hadronic interactions, using 3D relativistic
+MHD simulations of massive stars initialised from 3D GR-MHD collapsar simulations. A key question is whether strongly magnetised jets can
+still drive collisionless shocks – needed for particle acceleration – in extremely dense, radiation-dominated environments.</p>
+<p class="refs"><i class="fa-solid fa-file-lines"></i> <a href="https://arxiv.org/abs/2509.22419">Pais et al. 2025, ICRC</a> · <a href="https://doi.org/10.22323/1.510.0011">Celli et al. 2025, HEPRO IX</a></p>
+</div>
 
-        <footer id="contentinfo" class="body">
-                <address id="about" class="vcard body">
-                Powered by <a href="https://getpelican.com/">Pelican</a> with a theme based on <a href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">notmyidea</a>.
-                </address><!-- /#about -->
+<div class="research-block">
+<h3>Jets, kilonovae and r-process nucleosynthesis</h3>
+<p>GW170817 confirmed that neutron star mergers power both <strong>kilonovae</strong> – thermal transients from the radioactive decay of
+r-process elements – and relativistic jets. A framework linking the merger, the jet propagation and the nucleosynthesis is still missing.
+I aim to determine <strong>how a jet reshapes post-merger nucleosynthesis</strong> (e.g. through photodissociation that suppresses proton
+capture) by following the electron fraction Y<sub>e</sub> along the ejecta. The pipeline chains GR-MHD merger simulations (Spritz),
+jet–ejecta interaction with PLUTO, Lagrangian tracers post-processed with SkyNet, and kilonova light curves with xKN – from GW170817-like
+systems with different equations of state and injected jets, to jets launched self-consistently after the delayed collapse to a black hole –
+quantifying the role of neutrino transport (leakage vs. M1).</p>
+<p class="refs"><i class="fa-solid fa-flask"></i> Ongoing – subject of my MSCA proposal <em>KiloJets</em> (Seal of Excellence 2025).</p>
+</div>
 
-        </footer><!-- /#contentinfo -->
+<div class="research-block">
+<h3>Galactic PeVatrons: microquasars</h3>
+<p>Identifying the Galactic accelerators that reach PeV energies is one of the open questions of high-energy astrophysics. Microquasars are a
+promising class, as shown by the very-high-energy gamma rays along the jets of SS 433. With E. Amato, G. Morlino and E. Peretti
+(INAF – Arcetri) I run MHD simulations with PLUTO to map the jet dynamics and the structure of their shocks – Mach disks and recollimation shocks.
+On the code side, I am extending PLUTO's Lagrangian cosmic-ray particle module to the GPU version for non-Cartesian, non-uniform grids
+(with A. Mignone), and developing a <strong>new cosmic-ray fluid module dynamically coupled to the gas</strong> to model diffusive shock
+acceleration and the resulting non-thermal emission. The goal: quantify the contribution of microquasars to Galactic PeVatrons and to their
+gamma-ray and neutrino emission.</p>
+</div>
 
-    <script type="text/javascript">
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+<div class="research-block">
+<h3>Gravitational waves from jets</h3>
+<p>Relativistic jets should produce a gravitational-wave <strong>memory</strong> signal while they accelerate, so far computed analytically only for
+unstructured, instantaneously accelerated jets. I use hydrodynamic simulations of <strong>structured jets</strong> from BNS mergers and collapsars
+to compute the GW signal along the whole jet evolution, providing a physically motivated template for the pulse associated with the launch
+phase, following the inspiral signal.</p>
+</div>
 
-    ga('create', 'G-FQSKMZWFDB', 'auto');
-    ga('send', 'pageview');
-    </script>
+<div class="research-block">
+<h3>MezzoCielo</h3>
+<p>Since December 2025 I have been working with the <strong>MezzoCielo</strong> team (INAF – Padova, PI D. Magrin) on the science cases for
+this wide-field optical facility, focusing on transients and electromagnetic counterparts. Together with N. Elias-Rosa, I coordinated the
+science White Paper (~30 researchers from 15 institutes) and wrote its introduction and the section on early and late optical
+<strong>GRB afterglows</strong>.</p>
+<p class="refs"><i class="fa-solid fa-file-lines"></i> <a href="https://doi.org/10.5281/zenodo.21841550">Elias-Rosa et al. 2026, Expanding Horizons</a></p>
+</div>
+
+<h2>Past research</h2>
+
+<div class="research-block past">
+<h3>Cosmic-ray acceleration at supernova remnant shocks</h3>
+<p>During my PhD with C. Pfrommer (HITS and AIP) I studied supernova remnants (SNRs), prime candidates for accelerating cosmic rays (CRs) up to
+near-PeV energies. The CR microphysics (Larmor radii of ~10<sup>11</sup>–10<sup>12</sup> cm) and the SNR dynamics (0.1–10 pc) are separated by
+many orders of magnitude, so I used a fluid description with sub-grid CR transport in the moving-mesh MHD code AREPO: CRs are injected at shocks
+found on the fly and evolved with an advection–diffusion equation. Since kinetic simulations show that the acceleration efficiency
+<strong>depends on the angle between the magnetic field and the shock normal</strong>, I implemented obliquity-dependent CR acceleration and
+explored it in uniform and turbulent magnetic fields.</p>
+<p>We then produced synthetic TeV gamma-ray maps of shell-type and bilateral SNRs in hadronic and lepto-hadronic scenarios, mimicking the PSF and
+counting noise of Cherenkov telescopes like H.E.S.S., and used them to <strong>constrain the coherence length of the interstellar magnetic
+field</strong>. We showed for the first time that a composite interstellar medium, with thousands of small dense clumps interacting with the
+remnant shock, is needed to reproduce the observed morphology, spectrum and flux – while density fluctuations alone cannot explain the azimuthal
+TeV variations without obliquity-dependent acceleration.</p>
+<p class="refs"><i class="fa-solid fa-file-lines"></i> <a href="https://arxiv.org/abs/1805.00128">Pais et al. 2018</a> · <a href="https://arxiv.org/abs/1805.03216">Pais et al. 2020a</a> · <a href="https://arxiv.org/abs/2009.06649">Pais &amp; Pfrommer 2020b</a> · <a href="https://doi.org/10.1093/mnras/staa2989">Winner et al. 2020</a> · <a href="https://archiv.ub.uni-heidelberg.de/volltextserver/29011/">PhD thesis</a></p>
+</div>
+
+<hr>
+<h2 id="publications">Publications</h2>
+
+<h3>Peer-reviewed articles</h3>
+<ol class="pubs">
+  <li><span class="me">M. Pais</span>, R. Ciolfi, A. Pavan, <span class="title">Modelling the delayed shock-breakout emission following jet-launching binary neutron star mergers via relativistic magnetohydrodynamic simulations</span>, <em>Astronomy &amp; Astrophysics</em>, 2026. <span class="links"><a href="https://doi.org/10.1051/0004-6361/202661692">[DOI]</a> <a href="https://arxiv.org/abs/2606.29515">[arXiv]</a></span></li>
+  <li><span class="me">M. Pais</span>, T. Piran, K. Kiuchi, M. Shibata, <span class="title">Simulating short gamma-ray burst jets in realistic late binary neutron star merger environments</span>, <em>The Astrophysical Journal</em>, 976, 35 (2024). <span class="links"><a href="https://doi.org/10.3847/1538-4357/ad7d04">[DOI]</a> <a href="https://arxiv.org/abs/2407.19002">[arXiv]</a></span></li>
+  <li><span class="me">M. Pais</span>, T. Piran, Y. Lyubarsky, K. Kiuchi, M. Shibata, <span class="title">The collimation of relativistic jets in post-neutron star binary merger simulations</span>, <em>The Astrophysical Journal Letters</em>, 946, L9 (2023). <span class="links"><a href="https://doi.org/10.3847/2041-8213/acc2c5">[DOI]</a> <a href="https://arxiv.org/abs/2211.09135">[arXiv]</a></span></li>
+  <li><span class="me">M. Pais</span>, T. Piran, E. Nakar, <span class="title">The velocity distribution of outflows driven by choked jets in stellar envelopes</span>, <em>Monthly Notices of the Royal Astronomical Society</em>, 519, 1941 (2023). <span class="links"><a href="https://doi.org/10.1093/mnras/stac3640">[DOI]</a> <a href="https://arxiv.org/abs/2208.14459">[arXiv]</a></span></li>
+  <li>G. Winner, C. Pfrommer, P. Girichidis, M. Werhahn, <span class="me">M. Pais</span>, <span class="title">Evolution and observational signatures of the cosmic ray electron spectrum in SN 1006</span>, <em>Monthly Notices of the Royal Astronomical Society</em>, 499, 2785 (2020). <span class="links"><a href="https://doi.org/10.1093/mnras/staa2989">[DOI]</a></span></li>
+  <li><span class="me">M. Pais</span>, C. Pfrommer, <span class="title">Simulating TeV gamma-ray morphologies of shell-type supernova remnants</span>, <em>Monthly Notices of the Royal Astronomical Society</em>, 498, 5557 (2020). <span class="links"><a href="https://doi.org/10.1093/mnras/staa2827">[DOI]</a> <a href="https://arxiv.org/abs/2009.06649">[arXiv]</a></span></li>
+  <li><span class="me">M. Pais</span>, C. Pfrommer, K. Ehlert, M. Werhahn, G. Winner, <span class="title">Constraining the coherence scale of the interstellar magnetic field using TeV gamma-ray observations of supernova remnants</span>, <em>Monthly Notices of the Royal Astronomical Society</em>, 496, 2448 (2020). <span class="links"><a href="https://doi.org/10.1093/mnras/staa1678">[DOI]</a> <a href="https://arxiv.org/abs/1805.03216">[arXiv]</a></span></li>
+  <li><span class="me">M. Pais</span>, C. Pfrommer, K. Ehlert, R. Pakmor, <span class="title">The effect of cosmic-ray acceleration on supernova blast wave dynamics</span>, <em>Monthly Notices of the Royal Astronomical Society</em>, 478, 5278 (2018). <span class="links"><a href="https://doi.org/10.1093/mnras/sty1410">[DOI]</a> <a href="https://arxiv.org/abs/1805.00128">[arXiv]</a></span></li>
+</ol>
+<h3>Conference proceedings</h3>
+<ol class="pubs">
+  <li>N. Elias-Rosa, M. Della Valle, M. T. Botticella, E. Cappellaro, R. Ragazzoni, D. Magrin, C. Arcidiacono, <span class="me">M. Pais</span>, MezzoCielo Collaboration, <span class="title">MezzoCielo Telescope: catching the earliest phases of multimessenger transients</span>, <em>Expanding Horizons 2026</em>, ESO Garching, id. 67 (2026). <span class="links"><a href="https://doi.org/10.5281/zenodo.21841550">[DOI]</a></span></li>
+  <li>S. Celli, <span class="me">M. Pais</span>, A. Zegarelli, E. Peretti, <span class="title">Multi-messenger emission in choked jets from collapsars</span>, <em>High Energy Phenomena in Relativistic Outflows IX</em>, Rio de Janeiro, id. 11 (2025). <span class="links"><a href="https://doi.org/10.22323/1.510.0011">[DOI]</a></span></li>
+  <li><span class="me">M. Pais</span>, S. Celli, A. Zegarelli, E. Peretti, <span class="title">Choked jets in BSG/RSG as possible sources of high-energy neutrinos</span>, <em>39th International Cosmic Ray Conference (ICRC2025)</em>, Geneva, PoS(ICRC2025)1138 (2025). <span class="links"><a href="https://doi.org/10.22323/1.501.1138">[DOI]</a> <a href="https://arxiv.org/abs/2509.22419">[arXiv]</a></span></li>
+</ol>
+<h3>Thesis</h3>
+<ul><li><em>Magneto-hydrodynamic simulation with cosmic rays acceleration at supernova remnants</em>, PhD thesis, Heidelberg University (2020) <span class="links"><a href="https://archiv.ub.uni-heidelberg.de/volltextserver/29011/">[full text]</a></span></li></ul>
+<p class="small muted">Full and up-to-date lists on <a href="https://ui.adsabs.harvard.edu/search/fq=%7B!type%3Daqp%20v%3D%24fq_database%7D&fq_database=(database%3Aastronomy%20OR%20database%3Aphysics)&p_=0&q=%3Dauthor%3A%22Pais%2C%20Matteo%22%20OR%20%3Dauthor%3A%22Pais%2C%20M%22%20year%3A2018-&sort=date%20desc%2C%20bibcode%20desc">NASA/ADS</a>, <a href="https://inspirehep.net/authors/1820565">INSPIRE</a> and <a href="https://scholar.google.it/citations?user=K6QO73EAAAAJ&hl=en&oi=ao">Google Scholar</a>.</p>
+  </section>
+
+  <section id="extras" class="body">
+    <div class="blogroll">
+      <h2>Find me on</h2>
+      <ul>
+        <li><a href="https://ui.adsabs.harvard.edu/search/fq=%7B!type%3Daqp%20v%3D%24fq_database%7D&fq_database=(database%3Aastronomy%20OR%20database%3Aphysics)&p_=0&q=%3Dauthor%3A%22Pais%2C%20Matteo%22%20OR%20%3Dauthor%3A%22Pais%2C%20M%22%20year%3A2018-&sort=date%20desc%2C%20bibcode%20desc">NASA/ADS</a></li>
+        <li><a href="https://arxiv.org/search/?query=Pais%2C+Matteo&searchtype=author">arXiv</a></li>
+        <li><a href="https://scholar.google.it/citations?user=K6QO73EAAAAJ&hl=en&oi=ao">Google Scholar</a></li>
+        <li><a href="https://inspirehep.net/authors/1820565">INSPIRE</a></li>
+        <li><a href="https://orcid.org/0000-0002-4243-3889">ORCID</a></li>
+        <li><a href="https://github.com/metatapios">GitHub</a></li>
+      </ul>
+    </div><!-- /.blogroll -->
+  </section><!-- /#extras -->
+
+  <footer id="contentinfo" class="body">
+    <address id="about" class="vcard body">
+      Theme based on <a href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">notmyidea</a> (<a href="https://getpelican.com/">Pelican</a>).
+      &copy; 2026 Matteo Pais. Last updated: September 2026.
+    </address><!-- /#about -->
+  </footer><!-- /#contentinfo -->
+
+  <script>
+    // Assemble e-mail links at runtime to keep addresses away from simple scrapers
+    document.querySelectorAll('a.eml').forEach(function (a) {
+      var addr = a.dataset.u + '@' + a.dataset.d;
+      a.href = 'mailto:' + addr;
+      a.textContent = addr;
+    });
+  </script>
 </body>
 </html>

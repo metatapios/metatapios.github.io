@@ -8,11 +8,7 @@
 	Original author: Enrique Ramírez <http://enrique-ramirez.com/>
 */
 
-/* Imports */
-@import url("reset.css");
-@import url("pygment.css");
-@import url("typogrify.css");
-@import url("fonts.css");
+/* Fonts (Open Sans, Yanone Kaffeesatz) are loaded via <link> in each page head */
 
 /***** Global *****/
 
@@ -26,8 +22,6 @@ html {
 /* Body */
 body {
     background-color: #f7f7f7;
-    background-image: url("../images/penrose.jpg");  
-    background-size: 1200px;
     color: #000305;
     font-size: 100%; /* Base font size: 14px */
     font-family: 'Open Sans', Arial, sans-serif;
