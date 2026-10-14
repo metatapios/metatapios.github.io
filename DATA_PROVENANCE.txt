@@ -1,0 +1,7 @@
+Input binary datasets copied without modification from the user-supplied
+mascons_code_20260910.tar.gz project (Code C++/data/). They are exported
+spherical-harmonic GRGM1200B gravity coefficients and a coarse LOLA-derived
+surface grid. They are **not** 59 m SLDEM2015 DEM data.
+
+SHA256 gravity.bin: 0a422dc4997fbf7142ba5af279d0ad0fbb0ba1b60074bad6f19552c185fc1545
+SHA256 topo.bin: b222ec98cb0f03e81bfad12fc2590e9ebefcc186b8ddc749f87b3ed9ebb82679

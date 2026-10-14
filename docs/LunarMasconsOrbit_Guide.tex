@@ -1,0 +1,885 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=22mm,headheight=15pt,footskip=13mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{newtxtext,newtxmath}
+\usepackage{microtype}
+\usepackage{amsmath,mathtools}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{booktabs,longtable,tabularx,array}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage[most]{tcolorbox}
+\usepackage{fancyhdr,titlesec,lastpage,tocloft}
+\usepackage{hyperref,bookmark}
+\usepackage{needspace}
+\definecolor{navy}{HTML}{18364B}
+\definecolor{teal}{HTML}{067F83}
+\definecolor{slate}{HTML}{526372}
+\definecolor{light}{HTML}{F2F6F8}
+\definecolor{gold}{HTML}{AD6C13}
+\definecolor{line}{HTML}{D3DEE4}
+\hypersetup{colorlinks=true,linkcolor=navy,urlcolor=teal,pdftitle={LunarMasconsOrbit - Technical and User Guide},pdfauthor={LunarMasconsOrbit technical documentation},pdfsubject={Numerical lunar satellite dynamics and optional third-body perturbations}}
+\setcounter{tocdepth}{2}
+\setlength{\cftbeforesecskip}{3pt}
+\setlength{\cftbeforesubsecskip}{0pt}
+\setlength{\parskip}{4pt}
+\setlength{\parindent}{0pt}
+\setlist[itemize]{leftmargin=*,itemsep=2pt,topsep=3pt}
+\setlist[enumerate]{leftmargin=*,itemsep=2pt,topsep=3pt}
+\titleformat{\section}{\Large\bfseries\color{navy}}{\thesection}{0.7em}{}[\vspace{-2pt}\color{teal}\titlerule]
+\titleformat{\subsection}{\large\bfseries\color{navy}}{\thesubsection}{0.7em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{teal}}{\thesubsubsection}{0.7em}{}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{slate}LunarMasconsOrbit / technical guide}
+\fancyhead[R]{\small\color{slate}14 October 2026}
+\fancyfoot[L]{\small\color{slate}DOPRI5(4) / degree-300 production}
+\fancyfoot[R]{\small\color{slate}\thepage\, / \,\pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.3pt}
+\renewcommand{\footrulewidth}{0pt}
+\lstdefinestyle{terminal}{
+ basicstyle=\ttfamily\footnotesize,columns=fullflexible,breaklines=true,breakatwhitespace=true,
+ frame=single,rulecolor=\color{line},backgroundcolor=\color{light},
+ xleftmargin=3pt,xrightmargin=3pt,framesep=5pt,showstringspaces=false,
+ upquote=true,keepspaces=true
+}
+\lstset{style=terminal}
+\newtcolorbox{note}[1][]{enhanced,breakable,colback=light,colframe=teal,boxrule=0.55pt,arc=1.3mm,left=3mm,right=3mm,top=2mm,bottom=2mm,fonttitle=\bfseries,title={Technical note},#1}
+\newtcolorbox{warningbox}[1][]{enhanced,breakable,colback=white,colframe=gold,boxrule=0.65pt,arc=1.3mm,left=3mm,right=3mm,top=2mm,bottom=2mm,fonttitle=\bfseries,title={Scientific limitation},#1}
+\newcommand{\opt}[1]{\texttt{#1}}
+\newcommand{\pathcode}[1]{\nolinkurl{#1}}
+\newcommand{\kbd}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\unit}[1]{\,\mathrm{#1}}
+\begin{document}
+\thispagestyle{empty}
+\vspace*{20mm}
+{\color{teal}\rule{0.24\textwidth}{3.4pt}}\par\vspace{9mm}
+{\fontsize{29}{34}\selectfont\bfseries\color{navy} LunarMasconsOrbit\par}
+\vspace{4mm}
+{\Large\color{slate}Scientific software / technical and user guide}\par
+\vspace{9mm}
+{\large Fully normalized lunar mascon gravity, orbit propagation,\par terrain impacts and optional third-body perturbations}\par
+\vspace{14mm}
+\begin{tcolorbox}[colback=light,colframe=line,boxrule=.5pt,arc=2mm]
+\begin{tabularx}{\linewidth}{@{}>{\bfseries}l X@{}}
+Release date & 14 October 2026\\
+Code standard & C++17, CMake, optional OpenMP\\
+Restart format & HDF5, latest + previous per particle\\
+Live monitoring & Minimal 10/30-minute completion log + optional CSV diagnostics\\
+Numerical solvers & Verlet (2), Yoshida (4), adaptive Dormand--Prince (5/4)\\
+Third-body switch & \opt{--kozai-lidov on|off}; default: \opt{off}\\
+External perturbers & Earth, Sun, Jupiter; non-averaged differential gravity\\
+Core input & GRGM1200B-derived coefficients; LOLA-derived coarse terrain\\
+Guide source & \pathcode{docs/LunarMasconsOrbit_Guide.tex}\\
+\end{tabularx}
+\end{tcolorbox}
+\vfill
+{\Large\bfseries\color{navy}Version-specific documentation}\par
+{\color{slate}Written against the archived source version distributed alongside this PDF. Commands, defaults, CSV columns, and numerical formulas were checked against \pathcode{src/main.cpp} and the current headers.}\par
+\newpage
+\pdfbookmark[1]{Contents}{toc}
+\tableofcontents
+\clearpage
+
+\section{Production target and new adaptive integration}\label{sec:adaptive2026}
+\begin{note}[title={Correct production altitude and duration}]
+The intended campaign comprises \textbf{25,000 seeded randomized orbits}, initially
+\textbf{25--500\,km above the local lunar terrain}, propagated for up to
+\textbf{365.25 days or first surface impact}. Initial radius is drawn as
+$r_0=R_{\mathrm{terrain}}(\theta_0,\phi_0)+a_0$ with
+$a_0\sim\mathcal U(25,500)\,\mathrm{km}$; position is isotropically sampled
+($\sin\lambda$ uniform) and tangential heading is uniform.
+The supplied gravity field has degree/order \textbf{300}; choose
+\opt{--lmax max} (default in the new code). These are initial altitudes,
+not constraints on altitude over a year's evolution.
+\end{note}
+\subsection{New dimensional-error adaptive RK5(4)}
+The selectable \opt{--integrator adaptive} (now the default) uses the
+Dormand--Prince 5(4) embedded pair. For each component $y_j$ of Cartesian
+position $\mathbf r$ or velocity $\mathbf v$, the normalized local error is
+\begin{equation}
+  E_j=\frac{|y_{j,5}-y_{j,4}|}{a_j+\mathrm{rtol}\max(|y_{j,n}|,|y_{j,n+1}|)},\qquad
+  a_j=\begin{cases}a_r & j\le3,\\ a_v & j>3.\end{cases}
+\end{equation}
+The trial is accepted if $\max_j E_j\le1$. The next proposed step follows
+\begin{equation}
+\Delta t_{n+1}=\operatorname{clip}\left(0.9\Delta t_n E^{-1/5},
+0.2\Delta t_n,4\Delta t_n\right),
+\end{equation}
+subject to explicit minimum and maximum timesteps. The scheme uses the
+accepted final-stage acceleration as the next step's initial derivative
+(FSAL), and the Shampine quartic continuous extension to locate potential
+impacts \emph{without reintegrating the force at every event probe}.
+This integrator is \textbf{not symplectic}. Keep fixed-step Yoshida-4 for
+long-horizon convergence controls.
+
+The tentative dimensional controller defaults are
+\opt{--rtol 1e-10}, \opt{--atol-pos-m 0.01},
+\opt{--atol-vel-mps 1e-5}, \opt{--adaptive-min-dt-s 0.02}, and
+\opt{--adaptive-max-dt-s 90}. The altitude-dependent frequency cap is
+\begin{equation}
+N_{\rm cap}(h)=N_{\rm high}+(N_{\rm low}-N_{\rm high})
+\exp[-\max(h,0)/H],\qquad
+\Delta t\le\min(90\,\mathrm{s},P_0/N_{\rm cap}),
+\end{equation}
+where $N_{\rm high}=120$, $N_{\rm low}=480$, $H=75\,\mathrm{km}$,
+and $P_0$ is the \emph{initial} monopole period for that particle.
+This is a \emph{ceiling}, not a requirement to accept large steps: the embedded
+error test may select shorter intervals. Below $10\,\mathrm{km}$ terrain
+clearance a local-grid crossing cap is also imposed, and below $1\,\mathrm{km}$
+there is an additional two-second cap. Crucially, the old grid cap is
+\emph{not} applied throughout the much wider 25--500 km altitude range.
+The independent adaptive terrain-contact search is retained; it still
+cannot mathematically guarantee identifying every possible grazing contact
+on a piecewise-bilinear grid, especially near polar-grid degeneracies.
+
+\subsection{Reproducible commands}
+\begin{lstlisting}[language=bash]
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j4
+ctest --test-dir build --output-on-failure
+# 8 particles at 25-500 km, degree 300, lunar-only:
+MASCONS_N=8 MASCONS_DAYS=1 MASCONS_THIRD_BODIES=off \
+  MASCONS_OUTPUT_DIR=results/smoke ./run_converged_ensemble.sh
+# Production-scale launcher (requires a dated, validated SPICE CSV):
+OMP_NUM_THREADS=8 MASCONS_EPHEM_FILE=data/validated_spice.csv \
+  ./run_adaptive_25000_1year.sh
+# Independent fixed-step convergence control; NEW checkpoint directory:
+MASCONS_N=100 MASCONS_DAYS=60 MASCONS_INTEGRATOR=yoshida4 \
+  MASCONS_STEPS=960 MASCONS_THIRD_BODIES=off \
+  MASCONS_OUTPUT_DIR=results/yoshida_reference \
+  ./run_converged_ensemble.sh
+\end{lstlisting}
+
+\subsection{Measured short-run performance and limitations}
+At full degree 300 for one satellite integrated over 12 hours, measured
+wall-clock times at initial altitudes 25, 150 and 500 km were respectively
+4.07, 1.50 and 0.95 s (adaptive RK5(4)), versus 5.31, 4.35 and 3.45 s
+(Yoshida4 at 960 steps per initial orbit). Different hardware and impact
+histories can change these results dramatically. A 25 km adaptive run was
+0.246 m from a Yoshida4 3840-step endpoint after 12 hours; tightening
+adaptive controls reduced this difference to 0.003 m. A 500 km run was
+0.221 m from a \emph{tighter adaptive} control after 12 hours. Neither
+experiment proves year-long trajectory or impact-distribution convergence.
+
+\begin{warningbox}[title={25,000 particle HPC I/O warning}]
+The current two-generation HDF5 design writes \textbf{one pair of checkpoint
+files per particle}; 25,000 particles may create 50,000 files, a possible
+metadata bottleneck. Set \opt{--traj-count 0} by default so that all particle
+summaries, end states and impacts are recorded but full sampled histories are
+not duplicated in checkpoint snapshots. Full trajectory recording for every
+particle would require a redesigned sharded/append-only pipeline before a
+long one-year HPC run. Checkpoint cadence is measured in \emph{simulated}
+hours; to extend a run, preserve the exact adaptive settings and input files.
+The new checkpoint signature is incompatible with older releases.
+\end{warningbox}
+
+\section{Scope and scientific status}
+The program \pathcode{lunarmc} propagates test particles in a Moon-centered \emph{inertial} Cartesian frame. It evaluates a uniformly rotating, non-axisymmetric lunar spherical-harmonic field; samples an idealized ensemble of initial orbits; and locates intersections with an interpolated lunar radius grid. Optional differential Earth, Sun, and Jupiter gravity is selected with the \opt{--kozai-lidov} switch. The physical perturbation is Newtonian third-body gravity; no ad-hoc ``Kozai--Lidov acceleration'' is added.
+
+\begin{warningbox}[title={Do not treat historical outputs as corrected predictions}]
+Historical orbital statistics computed before corrections to harmonic normalization and integrator dispatch are not reliable production predictions. This release contains \emph{code-level tests and selected orbit checks}, not a recomputed or scientifically converged production ensemble. Earlier published-looking plots, fractions, lifetimes, and impact angles must be regenerated before quantitative interpretation.
+\end{warningbox}
+
+\textbf{Implemented:} fully normalized real spherical harmonics to the degree available in the binary dataset, analytic Cartesian gravity gradient, three time-aware integrators, a bilinear topographic collision surface, ground-relative impact geometry, deterministic Monte Carlo sampling, optional full differential third-body forces, ephemeris CSV interpolation, and run diagnostics.
+
+\textbf{Not implemented:} time-varying lunar libration/orientation, 59\,m SLDEM2015 surface refinement, spacecraft non-gravitational forces, impact fragmentation/cratering/ejecta/optical emission, validated real-kernel SPICE-to-orbit end-to-end comparison, or a fully re-run large ensemble.
+
+\section{Installation and first run}
+\subsection{Requirements}
+\begin{itemize}
+\item A C++17 compiler and CMake; OpenMP is optional but useful for Monte Carlo runs. The HDF5 C library and development headers are needed for HDF5 output and restart snapshots; CSV-only integrations still build without them.
+\item Python 3 for scripts and regression tests; install \kbd{numpy}, \kbd{matplotlib}, and \kbd{scipy} for the relevant analysis and independent gravity tests. \kbd{pyshtools} is needed only to re-export physical input datasets; \kbd{spiceypy} and valid NAIF kernels are needed for dated ephemeris export.
+\item Provided binary datasets: \pathcode{data/gravity.bin} and \pathcode{data/topo.bin}. All relative input paths are interpreted from the current working directory: run commands from the project root.
+\end{itemize}
+\subsection{Build and test}
+\begin{lstlisting}[language=bash]
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+\end{lstlisting}
+The test suite includes gravity normalization/gradient checks, integrator and impact regressions, third-body force and interpolation tests, on/off switch semantics, and (when SciPy is present) an independent spherical-harmonic comparison. See Section~\ref{sec:validation} for the distinction between passing tests and physical validation.
+
+\subsection{Three useful modes}
+\textbf{Lunar-only (the default):}
+\begin{lstlisting}[language=bash]
+./build/lunarmc --n 10 --lmax 60 --days 10 \
+  --integrator yoshida4 --seed 777 --traj-count 2
+# Equivalent: append --kozai-lidov off
+\end{lstlisting}
+\textbf{Earth--Sun--Jupiter demo (not dated science):}
+\begin{lstlisting}[language=bash]
+./build/lunarmc --n 10 --lmax 60 --days 10 \
+  --kozai-lidov on --third-bodies earth,sun,jupiter \
+  --ephem-mode analytic --integrator yoshida4
+\end{lstlisting}
+\textbf{Dated external perturbations (after SPICE export):}
+\begin{lstlisting}[language=bash]
+./build/lunarmc --n 10 --lmax 60 --days 10 \
+  --kozai-lidov on --ephem-file data/my_ephemeris.csv \
+  --integrator yoshida4
+\end{lstlisting}
+The dated mode is a better forcing prescription, but full consistency of lunar orientation and reference frames still needs verification before mission-level use.
+
+\subsection{Maximum-degree 100-particle experiment}
+The supplied binary includes all degrees and orders from $0$ through $300$, or
+$(301\times302)/2=45,451$ normalized coefficient pairs. The command below
+uses every available harmonic term and enables the full differential Earth,
+Sun, and Jupiter acceleration. The analytical ephemeris setting is explicitly
+\emph{undated and exploratory}, not a replacement for JPL kernels:
+\begin{lstlisting}[language=bash]
+./build/lunarmc --n 100 --seed 20261014 \
+  --alt-min 25 --alt-max 50 --days 60 --lmax max \
+  --steps-per-orbit 240 --integrator yoshida4 \
+  --kozai-lidov on --third-bodies earth,sun,jupiter \
+  --ephem-mode analytic --traj-count 100 --traj-dt-min 30 \
+  --checkpoint-dir results/kl300_cp --checkpoint-every-hours 24 \
+  --stop-when-all-impacted \
+  --hdf5 results/kl300_60d.h5 --no-csv
+\end{lstlisting}
+The degree-300 field is much more expensive to evaluate than degree 60.
+Check convergence at higher steps per orbit, compare against lower-degree
+harmonic truncations, and validate terrain and ephemeris frames. A third-body
+switch does \emph{not} imply one will observe secular Kozai--Lidov cycles in
+60 days; lunar gravity-driven precession and impacts typically act sooner.
+
+\section{Frames, units and gravity model}
+\subsection{Coordinates and rotation}
+Let \(\mathbf r,\mathbf v\) be the spacecraft inertial position and velocity, \(\mathbf r_{\rm B}\) its body-fixed position, and \(Q(t)=R_z(\Omega t)\) a rigid rotation about the fixed lunar \(z\)-axis. The code defines
+\begin{equation}
+\mathbf r_{\rm B}=Q(t)^{\mathsf T}\mathbf r,\qquad
+\mathbf a_{\rm M}(\mathbf r,t)=Q(t)\,\nabla_{\rm B}U_{\rm M}(\mathbf r_{\rm B}).
+\label{eq:lunaracc}
+\end{equation}
+This is not an integration in rotating coordinates: no Coriolis or centrifugal terms appear in the inertial equations. It is instead an inertial orbit subject to a rotating gravity potential. Default \(\Omega=2.661699\times10^{-6}\unit{rad\,s^{-1}}\), configurable with \opt{--omega}.
+
+Except for the explicitly marked km, degrees, days, and hours in the user interface, the dynamics and stored Cartesian state use \textbf{SI units} (m, s, m/s, m\(^3\)/s\(^2\)). Initial latitude and longitude are sampled in radians internally, then written in degrees.
+
+\subsection{Real, fully normalized spherical harmonics}
+The code uses a \emph{positive} gravitational potential \(U_{\rm M}\), so \(\mathbf a=+\nabla U\), while specific potential energy is \(-U\):
+\begin{align}
+U_{\rm M}(r,\phi,\lambda)
+={GM_{\rm M}\over r}\sum_{n=0}^{N}\left({R_{\rm ref}\over r}\right)^n
+\sum_{m=0}^{n}\overline P_{nm}(\sin\phi)
+\big[\overline C_{nm}\cos(m\lambda)+\overline S_{nm}\sin(m\lambda)\big].
+\label{eq:harmonic}
+\end{align}
+\(\phi\) is latitude and \(\lambda\) longitude in the body-fixed frame. The double sum includes \emph{all} orders \(m=0,\ldots,n\) at every retained degree. The implementation uses geodetic \(4\pi\)-normalized associated Legendre functions with \(\mathrm{csphase}=+1\), including
+\[
+\overline P_{11}(\sin\phi)=\sqrt3\cos\phi,\qquad
+\overline P_{22}(\sin\phi)={\sqrt{15}\over2}\cos^2\phi.
+\]
+The earlier \(m>0\) normalization error has been corrected. \(N\) is selected with \opt{--lmax}: requesting degree 300 is not equivalent to including the full degree-1200 GRGM1200B field. The supplied binary stops at degree/order 300, yielding 45,451 pairs $({\overline C}_{nm},{\overline S}_{nm})$; \opt{--lmax max} reads this limit from the binary header. Requesting \opt{--lmax 600} without replacing the input file fails explicitly. The code evaluates Cartesian acceleration analytically, with near-pole safeguards; the independent comparison is in \pathcode{tests/validate_scipy.py}.
+
+\subsection{Hamiltonian and reference Jacobi integral}
+The lunar-only inertial Hamiltonian (per unit mass) is explicitly time-dependent:
+\begin{equation}
+H_{\rm I}(\mathbf r,\mathbf p,t)={1\over2}|\mathbf p|^2-
+U_{\rm M}\!\left(Q(t)^{\mathsf T}\mathbf r\right),\quad \mathbf p=\mathbf v.
+\end{equation}
+For a uniform rigid spin and no third bodies, the reference Jacobi integral is
+\begin{equation}
+J_{\rm M}={1\over2}|\mathbf v|^2-U_{\rm M}(\mathbf r_{\rm B})-
+\Omega\left(\mathbf r\times\mathbf v\right)_z.
+\label{eq:jacobi}
+\end{equation}
+Its constancy provides a useful numerical diagnostic, \emph{not} a complete orbital-error bound. For \(\Omega=0\), this reduces to inertial mechanical energy in the static field.
+
+\section{Optional Earth, Sun and Jupiter forcing}
+\label{sec:thirdbodies}
+\subsection{Explicit on/off switch}
+The option \opt{--kozai-lidov off} (default) makes \(\chi_{\rm 3b}=0\), hence zero external acceleration. \opt{--kozai-lidov on} makes \(\chi_{\rm 3b}=1\); absent explicit selection, all three external bodies are used. The command-line aliases \opt{--enable-kozai-lidov} and \opt{--disable-kozai-lidov} are also accepted. Body and ephemeris options supplied with the switch \opt{off} are deliberately rejected.
+
+\subsection{Full Newtonian differential acceleration}
+Let \(\mathbf R_b(t)\) denote a geometric Moon-to-body vector in the same inertial Cartesian basis as the satellite. The implemented equation is
+\begin{equation}
+\boxed{\ddot{\mathbf r}=\mathbf a_{\rm M}(\mathbf r,t)+\chi_{\rm 3b}
+\sum_{b\in\{\mathrm E,\mathrm S,\mathrm J\}}GM_b\left[
+{\mathbf R_b-\mathbf r\over|\mathbf R_b-\mathbf r|^3}
+-{\mathbf R_b\over|\mathbf R_b|^3}\right].}
+\label{eq:3body}
+\end{equation}
+The second term inside the brackets is the \emph{indirect} acceleration that removes the acceleration of the Moon-centered origin. Dropping it would not describe relative motion about the Moon. A corresponding positive external potential (up to a function of time) is
+\begin{equation}
+U_{\rm 3b}(\mathbf r,t)=\sum_b GM_b\left(
+{1\over|\mathbf R_b-\mathbf r|}-{\mathbf r\cdot\mathbf R_b\over|\mathbf R_b|^3}\right),
+\qquad \mathbf a_{\rm 3b}=\nabla_{\mathbf r}U_{\rm 3b}.
+\end{equation}
+For \(|\mathbf r|\ll |\mathbf R_b|\), with \(\hat{\mathbf R}_b=\mathbf R_b/|\mathbf R_b|\),
+\begin{equation}
+\mathbf a_{{\rm tide},b}={GM_b\over|\mathbf R_b|^3}
+\left[3(\hat{\mathbf R}_b\!\cdot\mathbf r)\hat{\mathbf R}_b-\mathbf r\right]
++O\!\left({GM_b|\mathbf r|^2\over|\mathbf R_b|^4}\right).
+\label{eq:tidal}
+\end{equation}
+The quadrupole term underlies classical Kozai--Lidov (KL) dynamics. Here \emph{no additional orbit-averaged KL force is added}: that would double-count the effect already present in Eq.~\eqref{eq:3body}. Strong mascon precession, time-varying outer orbital planes, and terrain impacts can prevent recognizable KL cycles.
+
+\subsection{What is and is not conserved}
+For the lunar-only expression \(J_{\rm M}\) in Eq.~\eqref{eq:jacobi}, external gravity gives
+\begin{equation}
+{\mathrm dJ_{\rm M}\over\mathrm dt}=
+\left(\mathbf v-\boldsymbol\Omega\times\mathbf r\right)\cdot\mathbf a_{\rm 3b},
+\qquad \boldsymbol\Omega=\Omega\hat{\mathbf z}.
+\label{eq:jacobiderivative}
+\end{equation}
+Therefore the lunar reference Jacobi value is \textbf{not a conserved invariant} with \opt{--kozai-lidov on}. The code reports \pathcode{invariant_drift_rel=nan} instead of presenting this physical variation as integration error; \pathcode{lunar_jacobi_variation_rel} then denotes total variation including physical tides and numerical effects.
+
+The sampled KL indicator is
+\begin{equation}
+\label{eq:jz} j_z=\sqrt{1-e^2}\cos i_{\rm rel},\quad e<1,
+\end{equation}
+where \(e\) is the \emph{instantaneous monopole-osculating eccentricity} and \(i_{\rm rel}\) is measured against the instantaneous outer-orbit normal of the first enabled body (Earth, then Sun, then Jupiter). This \(j_z\) is \emph{not generally conserved} in the actual multi-perturber, mascon-dominated problem; it is only a diagnostic of possible KL-type evolution.
+
+\begin{note}[title={Ephemeris modes are not equivalent}]
+When \opt{--kozai-lidov on} is used alone, the code defaults to \opt{--ephem-mode analytic}: a toy set of Kepler ellipses with arbitrary phases, not corresponding to an actual date. To calculate dated trajectories, use an ephemeris file generated with validated SPICE kernels, and separately validate the fixed-axis lunar-frame approximation.
+\end{note}
+
+\section{Numerical integration and time resolution}
+All propagators evaluate the gravitational force using the \emph{stage's absolute time}, including the lunar rotation and external ephemerides.
+\begin{description}[leftmargin=3cm,labelwidth=2.6cm]
+\item[\opt{verlet}] Velocity Verlet (second order): a half kick, full drift, and endpoint-time half kick; fixed step.
+\item[\opt{yoshida4}] Fourth-order three-stage symmetric composition of Verlet. Default solver. If \(W_2(h)\) denotes a Verlet map,
+\[W_4(h)=W_2(w_1h)\,W_2(w_0h)\,W_2(w_1h),\quad
+w_1={1\over2-2^{1/3}},\quad w_0={-2^{1/3}\over2-2^{1/3}}.\]
+The middle composition has a negative stage time increment; external ephemerides therefore require coverage beyond the run endpoints.
+\item[\opt{adaptive}] Dormand--Prince RK5(4) with dimensional position/velocity error controls, FSAL stage reuse and quartic dense impact interpolation; \opt{--tol} aliases \opt{--rtol}. It is not symplectic; Section~\ref{sec:adaptive2026}.
+\end{description}
+The initial fixed-step scale is \(\Delta t=2\pi\sqrt{r_0^3/(GM_{\rm M})}/\text{steps-per-orbit}\). A requested \opt{--dense-factor F} divides this scale near terrain (inside \opt{--dense-envelope-km}); changing the step size eliminates a global fixed-step symplectic guarantee. The adaptive method applies both error control and an additional near-surface step cap.
+
+\begin{warningbox}[title={Event convergence is separate from state convergence}]
+Excellent Jacobi conservation or small RK embedded error does not by itself establish accurate impact time, longitude, or local impact angle. The terrain grid is only piecewise bilinear, with slope changes across grid boundaries. Refine the time step, event probes, and topographic resolution separately.
+\end{warningbox}
+
+\section{Surface geometry and impact detection}
+\subsection{Topographic surface and clearance}
+The dataset \pathcode{data/topo.bin} stores an absolute radial surface \(R_{\rm surf}(\phi,\lambda)\) on a Driscoll--Healy-style sampled longitude--latitude grid; the code uses bilinear interpolation and longitude wrapping. The clearance function is
+\begin{equation}
+h(t)=|\mathbf r(t)|-R_{\rm surf}\!\big(\phi_{\rm B}(t),\lambda_{\rm B}(t)\big).
+\end{equation}
+An impact is the earliest isolated positive-to-nonpositive clearance crossing. The
+\opt{--event-search adaptive} mode (new default) recursively bisects potentially
+unsafe intervals, first searching their earlier half. It discards a positive interval
+only when the endpoint clearances exceed a padded speed/terrain-gradient
+bound times half the interval duration. A detected contact is localized to
+\opt{--impact-tol-s} by reintegrating from the accepted step start. A trajectory
+which remains ambiguous at \opt{--event-max-depth} raises an error rather than
+silently claiming an impact-free passage. The old fixed-grid method remains
+available with \opt{--event-search sampled --event-substeps N} for historical
+comparisons. The bound uses a conservative numerical speed estimate and a
+mesh-gradient estimate, \emph{not an analytically proven global guarantee};
+near the clamped south-polar extrapolation and at piecewise bilinear grid
+boundaries, further terrain and timestep convergence checks remain essential.
+
+\subsection{Ground-relative speed and impact angles}
+At an event, ground-relative velocity expressed in body-fixed axes is
+\begin{equation}
+\mathbf v_{\rm rel,B}=Q(t)^{\mathsf T}\mathbf v-
+\boldsymbol\Omega\times\mathbf r_{\rm B}.
+\end{equation}
+For a radial graph \(r=R_{\rm surf}(\phi,\lambda)\), the outward surface normal is
+\begin{equation}
+\hat{\mathbf n}\propto \hat{\mathbf e}_r-
+{\partial_\phi R_{\rm surf}\over R_{\rm surf}}\hat{\mathbf e}_{\phi}
+-{\partial_\lambda R_{\rm surf}\over R_{\rm surf}\cos\phi}\hat{\mathbf e}_{\lambda},
+\qquad |\hat{\mathbf n}|=1.
+\end{equation}
+The two impact-angle outputs are
+\begin{align}
+\alpha_{\rm local}&=\sin^{-1}\!\left({|\mathbf v_{\rm rel,B}\cdot\hat{\mathbf n}|\over|\mathbf v_{\rm rel,B}|}\right),\\
+\alpha_{\rm radial}&=\sin^{-1}\!\left({|\mathbf v_{\rm rel,B}\cdot\hat{\mathbf e}_r|\over|\mathbf v_{\rm rel,B}|}\right).
+\end{align}
+Angles are measured \emph{from the local tangent plane}, between \(0^\circ\) (grazing) and \(90^\circ\) (normal impact), not from the normal. The local normal is piecewise defined on the bilinear grid; the code uses a radial fallback at the coordinate poles.
+
+\subsection{Resolution caveat}
+The supplied LOLA-derived grid is \textbf{603\(\times\)603}, roughly 18\,km between longitudinal columns at the equator, not a 59\,m DEM. \pathcode{tools/make_global_highres_maps.py} increases \emph{output image} resolution only. This guide does not claim high-resolution SLDEM2015 impact locations or local slopes. Impact angles derived from this coarse grid must not be presented as 59\,m terrain-refined results.
+
+\section{Initial conditions and Monte Carlo ensemble}
+For each of \(n\) samples, the code draws independent pseudo-random variables and constructs
+\begin{align}
+\phi_0&=\sin^{-1}(2u_1-1), & \lambda_0&=2\pi u_2,\\
+a_0&=a_{\min}+(a_{\max}-a_{\min})u_3, &\psi_0&=2\pi u_4,\\
+r_0&=R_{\rm surf}(\phi_0,\lambda_0)+10^3 a_0, &
+\mathbf v_0&=\sqrt{GM_{\rm M}/r_0}\,[\hat{\mathbf n}_0\cos\psi_0+\hat{\mathbf e}_0\sin\psi_0].
+\end{align}
+Here \(a_0\) is altitude in km \emph{above the interpolated terrain}, \(\hat{\mathbf n}_0\) denotes the local \emph{geographical north tangent direction} (not the terrain normal) and \(\hat{\mathbf e}_0\) east. The initial speed uses the central-monopole circular approximation. Thus the initial ensemble is \emph{not} a distribution of exact circular orbits in the full mascon potential, and it is not a reconstruction of a particular mission's orbital elements.
+
+Sampling uses \pathcode{std::mt19937} with \opt{--seed}; samples are drawn before the OpenMP loop to avoid schedule-dependent initial conditions. Keeping the seed and all model options fixed supports controlled paired comparisons across body selections.
+
+\section{Input data, provenance and file conventions}
+\begin{tabularx}{\linewidth}{@{}p{.23\linewidth}X@{}}
+\toprule
+Path & Content and conventions\\\midrule
+\pathcode{data/gravity.bin} & Native-endian binary (originally written on a little-endian system): 32-bit harmonic limit, two float64 values \(GM\) and reference radius, then float64 pairs \((C_{nm},S_{nm})\) in increasing \(n\), \(m\). Verify file export/compiler architecture when moving between platforms.\\
+\pathcode{data/topo.bin} & Two 32-bit dimensions \(n_{\rm lat},n_{\rm lon}\), followed by float64 radii (m), ordered north-to-south rows and cyclic longitude columns.\\
+\pathcode{data/third_bodies_*.csv} & Optional sampled Moon-centered Earth/Sun/Jupiter geometric positions, all in meters in the same inertial axes as the propagator; time in seconds relative to start.\\
+\pathcode{DATA_PROVENANCE.txt} & Source origin and SHA-256 checksums for supplied gravity/topography binaries.\\
+\bottomrule
+\end{tabularx}
+
+The bundled binaries were copied unchanged from the user-provided original code archive; the corrected \emph{evaluation algorithm} does not imply that raw coefficient bytes were modified. \pathcode{tools/export_data.py} requires \kbd{pyshtools} to regenerate the datasets from upstream sources. \pathcode{tools/make_synth_data.py} creates a separately named synthetic test-data directory and must not replace observational inputs in a scientific run.
+
+\section{CLI reference and defaults}
+\label{sec:options}
+The following table reflects the \pathcode{Config} declaration and parser in \pathcode{src/main.cpp}. Values may be overridden independently; \opt{--help} prints a compact summary.
+{\footnotesize\renewcommand{\arraystretch}{1.11}
+\begin{longtable}{@{}p{.32\linewidth}p{.22\linewidth}p{.40\linewidth}@{}}
+\toprule Option & Default & Meaning / units\\ \midrule\endfirsthead
+\toprule Option & Default & Meaning / units\\ \midrule\endhead
+\opt{--grav} & \pathcode{data/gravity.bin} & Gravity coefficients.\\
+\opt{--topo} & \pathcode{data/topo.bin} & Radial terrain grid.\\
+\opt{--out} & \pathcode{results/summary.csv} & Per-sample output table.\\
+\opt{--traj} & \pathcode{results/trajectories.csv} & Sparse trajectory table.\\
+\opt{--log} & \pathcode{results/run.log} & Minimal completed-count progress and ETA only.\\
+\opt{--n} & 500 & Number of Monte Carlo trajectories.\\
+\opt{--lmax} & \opt{max} & Maximum gravity harmonic degree; specify \opt{max} to use every degree stored in the file (300 in this release).\\
+\opt{--alt-min}, \opt{--alt-max} & 25, 500 & Uniform starting altitude range above terrain [km].\\
+\opt{--days} & 15 & Integration duration [days].\\
+\opt{--steps-per-orbit} & 480 & Initial fixed-step resolution from monopole period.\\
+\opt{--omega} & \(2.661699\times10^{-6}\) & Constant lunar spin [rad/s].\\
+\opt{--integrator} & \opt{adaptive} & \opt{verlet}, \opt{yoshida4}, or \opt{adaptive}; \opt{yoshida} is a legacy alias.\\
+\opt{--rtol} (or \opt{--tol}) & \(10^{-10}\) & Adaptive component-wise relative error tolerance.\\
+\opt{--atol-pos-m}, \opt{--atol-vel-mps} & 0.01, \(10^{-5}\) & Position [m] / velocity [m/s] absolute tolerances.\\
+\opt{--adaptive-min-dt-s}, \opt{--adaptive-max-dt-s} & 0.02, 90 & Step bounds in seconds.\\
+\opt{--adaptive-low-steps}, \opt{--adaptive-high-steps} & 480, 120 & Altitude-dependent ceiling in equivalent steps/orbit.\\
+\opt{--adaptive-scale-height-km} & 75 & Exponential transition height for timestep ceiling.\\
+\opt{--dense-envelope-km} & 11 & Terrain-clearance region for smaller fixed steps [km].\\
+\opt{--dense-factor} & 1 & Step reduction factor near terrain (\(\ge1\)).\\
+\opt{--impact-tol-s} & 0.001 & Bracket-refinement stopping interval [s].\\
+\opt{--event-substeps} & 4 & Legacy sampled-mode intermediate event probes (1--64).\\
+\opt{--event-search} & \opt{adaptive} & Clearance-aware adaptive search; \opt{sampled} reproduces the legacy fixed sampling.\\
+\opt{--event-max-depth} & 32 & Adaptive event-search recursion cap (1--36); unresolved tangencies fail explicitly.\\
+\opt{--traj-count} & 0 & Number of first sample IDs given trajectory output.\\
+\opt{--traj-dt-min} & 30 & Requested trajectory sampling spacing [minutes].\\
+\opt{--seed} & 12345 & Monte Carlo pseudorandom seed.\\
+\opt{--hdf5} & not set & Compressed HDF5 output archive written at completion.\\
+\opt{--progress-dir} & run-log directory & Directory containing live progress CSV snapshots.\\
+\opt{--progress-every-seconds} & 600 & Wall-clock completion-count polling interval [s].\\
+\opt{--progress-heartbeat-seconds} & 1800 & Log update when count is unchanged [s].\\
+\opt{--progress-sim-hours} & 6 & Per-particle simulated-hour interval for updating the latest state.\\
+\opt{--no-csv} & false & Suppress CSV outputs (requires \opt{--hdf5}).\\
+\opt{--checkpoint-dir} & not set & Directory with independent two-generation HDF5 restart snapshots per particle.\\
+\opt{--checkpoint-every-hours} & 6 & Simulated hours between checkpoint writes.\\
+\opt{--resume} & false & Resume from the latest intact checkpoint, or previous intact generation.\\
+\opt{--stop-when-all-impacted} & false & Explicitly report termination once all particles hit; particle-wise early stopping is already automatic.\\
+\opt{--kozai-lidov} & \opt{off} & Enable / disable all third-body forces.\\
+\opt{--third-bodies} & \opt{all} if on & Comma-separated Earth, Sun, Jupiter; also \opt{all} or \opt{none}. Must be nonempty when on.\\
+\opt{--ephem-mode} & demo when on & \opt{analytic} or \opt{file}; with switch off no ephemeris permitted.\\
+\opt{--ephem-file} & not set & CSV sampled ephemerides; implies \opt{file} mode if given.\\
+\bottomrule
+\end{longtable}}
+\begin{note}
+The parser rejects contradictory switches, unsupported integrators, unavailable harmonic degrees, and invalid numerical ranges. It returns a nonzero exit code when a trajectory integration fails rather than silently producing a partial per-ensemble CSV.
+\end{note}
+
+\section{Outputs and their interpretation}
+\subsection{\pathcode{summary.csv}}
+A row is written for every completed sample, ordered by deterministic sample ID. Main fields include:
+\begin{itemize}
+\item \pathcode{lat0,lon0,alt0_km,heading,inc0}: initial location/altitude, tangent heading, and initial orbital inclination (degrees except altitude).
+\item \pathcode{impacted,t_end_hr,impact_lat,impact_lon}: impact flag, refined event or cutoff time, and impact location for impacts. Impact coordinates for survivors should \emph{not} be interpreted as a measured impact.
+\item \pathcode{impact_angle_deg,radial_angle_deg}: ground-relative local-terrain and radial tangent-plane angles, respectively. \pathcode{terrain_elev_m} is event surface radius minus lunar gravity reference radius.
+\item \pathcode{terminal_speed_ms,vx_term,vy_term,vz_term}: for impacts, terminal speed and velocity components relative to the rotating surface in body-fixed coordinates; for survivors, \pathcode{terminal_speed_ms} is the inertial endpoint speed and impact-only fields remain default-initialized. \emph{Do not pool these meanings without conditioning on \pathcode{impacted}.}
+\item \pathcode{alt_min_km,alt_max_km,ecc_max,orbit_count,n_steps}: sampled clearance extrema, monopole-osculating eccentricity maximum, counted z-plane crossings, and accepted main steps.
+\item \pathcode{inv0,invariant_drift_rel,lunar_jacobi_variation_rel}: initial lunar reference Jacobi, conservation diagnostic for lunar-only runs, and total lunar reference variation. The drift field is \kbd{nan} with third bodies on.
+\item \pathcode{kl_incl0_deg,kl_incl_end_deg,kl_jz0,kl_jz_end}: optional, osculating body-relative KL diagnostics; \kbd{nan} for lunar-only runs (and \(j_z\) for unbound osculating states).
+\end{itemize}
+\subsection{\pathcode{trajectories.csv} and logs}
+The trajectory file stores the first \opt{--traj-count} sample IDs only. Fields are \pathcode{id,t_hr,lat,lon,alt_km,invariant,ecc,x,y,z,vx,vy,vz,kl_incl_deg,kl_jz}. Cartesian coordinates and velocities are inertial, in m and m/s; latitude/longitude and altitude refer to the rotating surface, and the timestamp is the \emph{actual accepted step time} (not necessarily the exact requested sampling grid). The \pathcode{invariant} column is only a \emph{lunar reference expression} in third-body runs. Verbose configuration, consistency checks, runtime, and ephemeris warnings are printed on the console (stdout). The text log contains only completed counts, percentages and finish-time estimates.
+
+\section{HDF5 simulation results and two-generation restart snapshots}
+\label{sec:hdf5_restart}
+The native HDF5 output file (\opt{--hdf5}) stores run attributes,
+configuration parameters, compressed per-particle summary rows, and compressed
+trajectory samples with a ragged \pathcode{offsets} index. It is written on
+successful completion, replacing a staging file atomically. Add \opt{--no-csv}
+to keep the numerical results in HDF5 rather than duplicating them as CSV.
+The run log remains plain text.
+
+A separate \opt{--checkpoint-dir} enables resumability. Under this directory,
+each particle \(i\) retains up to two rotating HDF5 snapshots:
+\pathcode{particle_XXXXXXXX.h5} (latest) and
+\pathcode{particle_XXXXXXXX.prev.h5} (prior). A small text
+\pathcode{run.manifest} verifies the run identity. Checkpoints include the
+inertial Cartesian state \((t,\mathbf q,\mathbf v,\mathbf a)\), integrator
+controller (including proposed adaptive step), orbit-crossing and sampling
+counters, accumulated diagnostics, and the complete terminal/impact record.
+For particles included by \opt{--traj-count}, the snapshot also stores the
+full previously sampled trajectory in a compressed typed HDF5 dataset.
+\emph{All} particles have numerical restart states and summaries, including
+impacted particles, whose status remains terminal after a resumed run.
+To save every particle's sampled history, specify \opt{--traj-count} equal to
+\opt{--n}.
+
+At each checkpoint event, the solver creates a temporary HDF5 snapshot,
+closes and verifies its checksum, atomically moves the existing latest
+snapshot to the previous-generation slot, and promotes the temporary file to
+latest. If the latest snapshot is corrupt, the reader attempts the previous
+valid generation. Checkpoints are taken on initialization, every
+\opt{--checkpoint-every-hours} simulated hours, at impact, and upon normal
+completion. The HDF5 library calls are mutex-serialized across OpenMP workers
+to support builds without thread-safe HDF5. A power failure during rotation
+can leave only the previous intact generation, from which recovery remains
+possible; regular off-machine backups are still recommended.
+
+\begin{lstlisting}[language=bash]
+# First 30 days: all 100 full histories and terminal states retained
+./build/lunarmc --n 100 --seed 20261014 --lmax 60 \
+  --alt-min 25 --alt-max 50 --days 30 \
+  --integrator yoshida4 --kozai-lidov off \
+  --steps-per-orbit 240 --traj-count 100 --traj-dt-min 30 \
+  --checkpoint-dir results/checkpoints --checkpoint-every-hours 6 \
+  --hdf5 results/orbits_30d.h5 --no-csv
+
+# Extend survivors to 60 days, preserving earlier impact records
+./build/lunarmc --n 100 --seed 20261014 --lmax 60 \
+  --alt-min 25 --alt-max 50 --days 60 \
+  --integrator yoshida4 --kozai-lidov off \
+  --steps-per-orbit 240 --traj-count 100 --traj-dt-min 30 \
+  --checkpoint-dir results/checkpoints --checkpoint-every-hours 6 \
+  --resume --hdf5 results/orbits_60d.h5 --no-csv
+\end{lstlisting}
+Only the requested end date and output-file paths may change between these
+runs. A configuration fingerprint checks gravity and topography content,
+integrator and numerical parameters, seed, and third-body settings. The
+checkpoint directory is \emph{not} a finalized whole-ensemble result file:
+until successful completion, each worker has its own most-recent state.
+Checkpoint storage is bounded to two HDF5 snapshots per particle, though
+recompressing growing sampled histories incurs I/O overhead. Existing text
+\pathcode{.chk} snapshots (V1) cannot be resumed with the V2 manifest; keep
+that older executable for an existing V1 run. Old analysis CSV/HDF5 without
+checkpoints does not permit exact restart.
+
+
+\begin{note}
+An extension preserves the last accepted physical state. If a prior run
+stopped at an arbitrary requested final time, however, the solver may have
+used a truncated last step to reach that exact endpoint. Therefore its
+continuation need not be \emph{bitwise identical} to a single uninterrupted
+longer integration, even though it is a valid integration. This effect also
+changes step-sampled altitude extrema. Evaluate timestep convergence for
+scientific results; interrupted runs restarted at ordinary accepted-step
+checkpoints avoid such artificial end-time splitting.
+\end{note}
+
+
+\subsection{Stopping when all particles collide}
+The optional \opt{--stop-when-all-impacted} makes the ensemble stop condition
+explicit in stdout. Each independent particle trajectory already ends
+at its own first topographic impact. Therefore, if all particles impact before
+\opt{--days}, the parallel ensemble \emph{already} completes at the last
+impact---the option does not reduce integration work or change trajectories.
+With the flag enabled, stdout distinguishes ``all particles impacted'' from
+``requested end date reached''; it is safe to change this flag when resuming
+an existing V2 checkpoint set. The full result HDF5 is written when the
+independent trajectories have all completed; intermediate data remain in
+per-particle HDF5 checkpoints. For example, append
+\opt{--stop-when-all-impacted} to either command above.
+
+
+
+\section{Live progress and numerical diagnostics for production campaigns}
+\label{sec:progress}
+The \emph{final numerical results} remain together in one compressed HDF5
+archive, \pathcode{orbits.h5}, with \pathcode{/summary} (\emph{all} particles),
+\pathcode{/metadata}, and the ragged trajectory arrays
+\pathcode{/trajectories/samples} and \pathcode{/trajectories/offsets}.
+The trajectory history is only present for the first \opt{--traj-count}
+IDs (default zero in the large-ensemble launcher); this does not remove any
+particle from the summary. The consolidated HDF5 is written \emph{once the
+entire job succeeds}, not updated in place during parallel propagation.
+Current restart checkpoints remain separate two-generation HDF5 files for
+individual particles.
+
+\subsection{Concise completion-count log (10/30-minute cadence)}
+The human-readable \pathcode{run.log} contains \emph{only} four fields: the
+wall-clock timestamp, completed trajectories out of the total, percent
+completed, and a provisional estimated wall-clock finish time. A trajectory
+is complete after lunar impact or after it reaches the requested simulation
+time limit; numerical failures are not considered successful completions.
+The format is:
+\begin{lstlisting}
+2026-10-14 16:00:00 | 0/25000 completed | 0.00% | ETA: unknown
+2026-10-14 16:10:00 | 135/25000 completed | 0.54% | ETA: 2026-10-15 22:40:00
+\end{lstlisting}
+\emph{Times and counts in the example are illustrative.} The monitor wakes
+every \textbf{10 minutes of wall-clock time} and reads the current completed
+count. If that count changed, it writes one new line; if unchanged, it waits
+until \textbf{30 minutes since the last line} before writing a heartbeat.
+There is also an initial line on fresh runs and a final line on termination.
+This avoids flooding the log during an HPC production run.
+
+The ETA uses the number of \emph{newly finished trajectories since the present
+process launched} divided by elapsed wall-clock time, extrapolated to the
+remaining population. Restored terminal particles are excluded from this
+rate. Until at least one new completion exists, ETA is shown as
+\kbd{unknown}. The estimate may be seriously biased by early short-lived
+orbits, so it is \emph{not} an HPC scheduling guarantee.
+
+\begin{lstlisting}[language=bash]
+MASCONS_PROGRESS_EVERY_SECONDS=600 \
+MASCONS_PROGRESS_HEARTBEAT_SECONDS=1800 \
+MASCONS_OUTPUT_DIR=results/one_year \
+./run_adaptive_25000_1year.sh
+
+tail -f results/one_year/run.log
+\end{lstlisting}
+
+\subsection{Separate diagnostics (not part of the simple log)}
+The existing files under \opt{--progress-dir} are kept for optional scientific
+and failure analysis:
+\begin{itemize}
+\item \pathcode{progress.csv}: aggregate ensemble work, elapsed wall time,
+terminal categories and numerical diagnostics, updated whenever a simple
+log line is emitted.
+\item \pathcode{particle_status.csv}: atomically replaced status for every
+particle ID, updated on the same cadence.
+\item \pathcode{particle_events.csv}: append-only terminal-event ledger, flushed
+as individual trajectories complete or fail.
+\end{itemize}
+Verbose physics and configuration diagnostics print to the console, so HPC
+scheduler output can be saved separately without cluttering
+\pathcode{run.log}. The final scientific results remain in one compressed
+HDF5 archive, whereas independently resumable checkpoints are stored in
+the existing two-generation per-particle HDF5 scheme.
+
+\subsection{Interpretation of energy loss, drift and embedded solver error}
+In the rotating, non-axisymmetric lunar-only model,
+\begin{equation}
+ E(t)=\tfrac12|\mathbf v|^2-U(\mathbf r_{\rm body},t),\qquad
+ J(t)=E(t)-\Omega_{\rm Moon}L_z(t)
+\end{equation}
+with the same potential-sign convention as the force evaluator.
+Signed \pathcode{energy_change_rel_signed} reports
+$[E(t)-E(0)]/\max(|E(0)|,1\,\mathrm{m^2\,s^{-2}})$;
+negative values are losses of \emph{inertial} specific mechanical energy,
+not necessarily numerical dissipation. Similarly,
+\pathcode{jacobi_change_rel_signed} reports
+$[J(t)-J(0)]/\max(|J(0)|,1\,\mathrm{m^2\,s^{-2}})$.
+The \pathcode{max_lunar_jacobi_variation_rel} is the largest absolute
+reference change encountered so far; for \emph{lunar-only} runs this is the
+numerical conservation diagnostic
+\pathcode{numeric_invariant_drift_rel}.
+When third-body forces are enabled, the lunar Jacobi integral is \emph{not}
+conserved, so this last numerical drift field is correctly \kbd{nan}: it is
+\emph{not} defensible to label physical tidal work as an integrator error.
+For the adaptive RK solver, \pathcode{last_accepted_local_error_ratio}
+is the latest accepted \emph{embedded, normalized local error} (normally
+$\le1$). It is \emph{not} a global energy- or trajectory-error bound, and is
+\kbd{nan} for fixed-step integrators and until an adaptive step is accepted.
+The reported \pathcode{max_eccentricity_so_far} is a cumulative maximum,
+not the instantaneous eccentricity.
+
+\subsection{Reliability and scalability}
+The producer thread serializes per-particle telemetry updates through a
+short mutex; a dedicated monitoring thread writes the current status snapshot
+outside that lock. This avoids forcing HDF5 I/O at every accepted step.
+Per-particle telemetry is refreshed every
+\opt{--progress-sim-hours} simulated hours (and at start/termination), while
+the snapshot and aggregate timeline are published only when the completed count
+changes at the next \opt{--progress-every-seconds} poll, or on the
+\opt{--progress-heartbeat-seconds} idle heartbeat. If the job is terminated,
+completed events and the last published snapshot remain available; the
+restart source of truth is still the HDF5 checkpoint directory, \emph{not}
+the CSV progress files. At 25,000 particles, rewriting one modest status
+CSV once per log line is far less expensive than writing a separate HDF5 file
+per particle at the same frequency. The existing per-particle checkpoint
+system and its serialized HDF5 calls remain the larger-scale I/O limitation;
+sharded checkpoints are a future improvement, \emph{not included in this
+release}. This OpenMP executable does not itself distribute work across
+multiple HPC nodes; 387 allocated cores may require a scheduler/MPI job split.
+
+\section{Dated ephemerides: generating and using SPICE data}
+\label{sec:spice}
+The exporter \pathcode{tools/export_spice_3body.py} requires valid user-provided leap-second (LSK), planetary ephemeris (SPK), and lunar-orientation (PCK) kernels. Example (kernel names here are illustrative local filenames):
+\begin{lstlisting}[language=bash]
+python -m pip install spiceypy
+python tools/export_spice_3body.py \
+  --kernels /path/to/naif0012.tls /path/to/pck00011.tpc \
+            /path/to/de440.bsp \
+  --start-utc '2026-10-13T00:00:00 UTC' --days 30 \
+  --step-min 60 --padding-hours 48 \
+  --out data/third_bodies_spice.csv
+
+./build/lunarmc --n 20 --lmax 60 --days 30 \
+  --kozai-lidov on --third-bodies all \
+  --ephem-file data/third_bodies_spice.csv \
+  --integrator yoshida4
+\end{lstlisting}
+The ten CSV columns are:
+\begin{lstlisting}
+time_s,earth_x_m,earth_y_m,earth_z_m,sun_x_m,sun_y_m,sun_z_m,jupiter_x_m,jupiter_y_m,jupiter_z_m
+\end{lstlisting}
+All vectors are \emph{geometric} (SPICE aberration correction \kbd{NONE}), Moon-centered, in meters. The tool converts NAIF output from J2000 into a \emph{fixed} Cartesian basis equal to \kbd{IAU_MOON} at \(t=0\), and then treats that basis as nonrotating. It uses Jupiter's system barycenter by default. The C++ reader uses four-point cubic Lagrange interpolation and requires at least four strictly ordered samples. Padding covers RK/Yoshida stage evaluations outside the nominal run interval.
+
+\begin{warningbox}[title={High-accuracy frame caveat}]
+The SPICE exporter is provided and the C++ sampled-ephemeris reader has been tested with synthetic data, but real NAIF kernel export was \emph{not validated in the original release environment}. More importantly, GRGM1200B/LOLA convention matching, fixed-frame initialization, and actual lunar libration history have not been benchmarked to a high-precision mission propagator. Do this before making dated, year-long quantitative claims.
+\end{warningbox}
+
+\section{Production workflow and reproducibility}
+\subsection{Single-orbit diagnostic}
+\begin{lstlisting}[language=bash]
+./run_single.sh 100 30 120 777
+# optionally append args after the first four positional values:
+./run_single.sh 100 30 120 777 --kozai-lidov on \
+  --third-bodies earth --ephem-file data/third_bodies_spice.csv
+\end{lstlisting}
+This wrapper builds when necessary, runs one sample, and calls relevant plotters. Examine console diagnostics and ensure the selected ephemeris spans the entire integration and Yoshida internal stage times.
+
+\subsection{Ensemble helper}
+\begin{lstlisting}[language=bash]
+# Positional args: N, DAYS, LMAX, ALT_MIN, ALT_MAX, BIN_KM
+./run_montecarlo.sh 100 30 60 25 250 10
+# Dated three-body ensemble (the switch stays OFF otherwise):
+MASCONS_KOZAI_LIDOV=on \
+MASCONS_EPHEM_FILE=data/third_bodies_spice.csv \
+MASCONS_THIRD_BODIES=earth,sun,jupiter \
+./run_montecarlo.sh 100 30 60 25 250 10
+\end{lstlisting}
+The production wrapper deliberately requires \kbd{MASCONS_EPHEM_FILE} when the option is on, unless the explicitly labeled toy mode \kbd{MASCONS_EPHEM_MODE=analytic} is set. The full \kbd{25000 366 300} configuration is expensive and should \emph{follow}, not precede, convergence tests.
+
+\subsection{Paired-force comparison protocol}
+Run identical initial seeds with a common dated ephemeris, gravity degree, terrain, and solver settings, changing \emph{only} the selected external bodies:
+\begin{enumerate}
+\item Lunar-only: \opt{--kozai-lidov off}.
+\item Earth only: \opt{--kozai-lidov on --third-bodies earth}.
+\item Earth and Sun: \opt{--kozai-lidov on --third-bodies earth,sun}.
+\item All three: \opt{--kozai-lidov on --third-bodies all}.
+\end{enumerate}
+Set different \opt{--out}, \opt{--traj}, and \opt{--log} filenames per experiment. Compare event time for the \emph{same} sample ID when both runs impact, and survival status and orbital-element evolution otherwise. A nonzero difference is not by itself evidence of KL cycling.
+
+\section{Verification and convergence programme}
+\label{sec:validation}
+\subsection{Existing automated tests}
+\begin{lstlisting}[language=bash]
+ctest --test-dir build --output-on-failure
+# Direct independent gravity test, when SciPy is installed:
+python tests/validate_scipy.py ./build/gravity_probe data/gravity.bin
+\end{lstlisting}
+Key fixtures are \pathcode{tests/core_tests.cpp}, \pathcode{tests/test_third_bodies.cpp}, \pathcode{tests/test_kl_switch.py}, \pathcode{tests/test_third_body_regression.py}, \pathcode{tests/test_impact_regression.py}, and \pathcode{tests/test_adaptive_event.py}. Existing \pathcode{validation/} CSV and report files are \emph{illustrative single-orbit checks}, not a comprehensive production dataset. Check the fresh \kbd{ctest} output in your own environment.
+
+\subsection{Required tests before science tables}
+\begin{enumerate}
+\item \textbf{Gravity truth test:} compare potential and all Cartesian acceleration components at random locations and near the poles against a trusted independent evaluator, using the exact normalization, coefficient phase, reference radius, and frame conventions.
+\item \textbf{Temporal convergence:} repeat at increasing \opt{--steps-per-orbit}; independently tighten adaptive \opt{--tol}; compare state, Jacobi drift in lunar-only runs, impact time, impact position, and both angles. Do not use Jacobi drift alone.
+\item \textbf{Degree convergence:} compare several \opt{--lmax} values up to the input limit with identical initial conditions and numerical accuracy.
+\item \textbf{Event resolution:} with \opt{--event-search adaptive}, refine \opt{--impact-tol-s}, \opt{--event-max-depth} and the near-surface step cap. For fixed-grid replication use \opt{--event-search sampled --event-substeps N}. Stable impact flags, times and coordinates matter more than nominal tolerance.
+\item \textbf{Topographic resolution:} replace the coarse surface with an independently documented high-resolution DEM, validate surface normals, and repeat the relevant comparisons. Do not infer fidelity from visualization pixels.
+\item \textbf{Third-body validation:} compare dated external vectors and accelerations, verify frame and lunar libration consistency, and benchmark against an independent numerical orbit propagator. For secular KL claims, show evolving \(e,i,\omega_{\rm peri}\) on appropriate secular timescales, not just \(j_z\).
+\item \textbf{Statistical convergence:} after model convergence, rerun the ensemble and quantify Monte Carlo confidence intervals, sensitivity to initial-condition priors, and uncertainty from topography and external-force modeling.
+\end{enumerate}
+\begin{warningbox}[title={Release status}]
+Passing code tests does \emph{not} establish scientific accuracy. Verify reference frames and physical approximations, and regenerate the superseded 25,000-orbit results before publication.
+\end{warningbox}
+
+\section{Time- and event-convergence prescriptions (October 2026)}
+\begin{warningbox}[title={Evidence is limited; not a universal convergence certificate}]
+The degree-60, 60-day, 20-particle, Earth/Sun/Jupiter \emph{synthetic-ephemeris}
+experiment found that fixed event sampling at 480 steps/orbit and 16 subdivisions
+agreed with 960 steps/orbit and 16 subdivisions to a maximum of 0.075\,s
+in impact time. At 240 steps/orbit an earlier grazing contact was still missed
+for one particle by approximately 6787\,s. The corrected adaptive search
+reproduced the 16-subdivision results for this 20-particle test. Thus the
+change in the time-step resolution, not merely event sampling, controls that
+exception. Neither these tests nor a small, five-day degree-300 subset prove
+convergence for a complete 60-day, 100-object degree-300 integration.
+\end{warningbox}
+
+\subsection{Completed 100-particle full-duration timestep check}
+A 60-day experiment with the same 100 random initial conditions
+(seed 20261014; terrain-relative 25--50\,km; degree-60 Moon plus undated
+analytic Earth/Sun/Jupiter tides) was repeated at 480 and 960 steps
+per initial orbit, both using adaptive terrain-event search. The number
+of impacted satellites was \textbf{97/100 at both resolutions}, with the
+same survivors (IDs 27, 56, 73). Among the 97 paired impacts, the
+median absolute difference in first-contact time was \textbf{0.0262\,s}
+and the maximum was \textbf{0.1644\,s}. The median great-circle
+displacement of impact location was 3.66\,m, with a maximum of 86.5\,m
+(using a 1738\,km reference radius). These results support convergence
+\emph{relative to the tested degree-60 model and its coarse surface}.
+
+The older 240-step, four-probe calculation also gave 97 impacts and the
+same three survivors, but its median impact time was 12.756\,days rather
+than 12.600\,days; individual first-contact times differed from the
+960-step reference by as much as \textbf{29.7 hours}. This is not a
+controlled one-parameter experiment because both the step resolution and
+event-search strategy differed. Population collision fractions can be
+stable while individual events are not. The 480-to-960 adaptive comparison
+controls the event method and demonstrates much stronger agreement.
+
+\subsection{Recommended experiment matrix}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Production candidate at degree 60:} Yoshida4, \opt{--steps-per-orbit 480},
+\opt{--event-search adaptive}, \opt{--event-max-depth 32},
+\opt{--impact-tol-s 0.001}; verify against 960 steps/orbit on the \emph{same}
+100 seeds for at least the longest survivors and all grazing impacts.
+\item \textbf{At degree 300:} use \opt{--lmax max}, start with 480,
+then independently test 960 and 1920 steps/orbit on selected surviving,
+grazing and high-inclination orbits. A 240-step setting is \emph{not}
+validated as production accuracy at maximum degree.
+\item \textbf{Spatial convergence:} compare degrees 60, 120, 180, 240,
+300, keeping the high-degree integration at a separately verified small time
+step. The supplied input ends at degree 300, so this is only convergence
+\emph{toward the available truncation}, not toward an infinite series.
+\item \textbf{Impact events:} compare impact status, time (e.g. below 1\,s),
+body-fixed location (e.g. below 1\,km), and the ordering of first terrain
+contacts, rather than Jacobi preservation alone. Grazing contacts are
+particularly sensitive to terrain interpolation and may require stronger
+criteria than these illustrative acceptance thresholds.
+\item \textbf{Long runs:} compare cumulative impact fractions as a function
+of time, survival of each \emph{matched particle ID}, and extrema over the
+entire requested horizon. Confirm both timestep and gravity-degree stability
+before quoting a final 100-particle collision fraction.
+\end{enumerate}
+\subsection{Restart and error budget}
+Use two-generation HDF5 checkpoints and \opt{--traj-count 0} for summary-only production at 25,000 particles. Do not set \opt{--traj-count} equal to \opt{--n} in a one-year run until trajectory streaming/checkpoint sharding is implemented. Any changes to the
+integration step, event detection settings, gravity degree, ephemeris file
+or terrain require a \emph{new} checkpoint directory; old checkpoints are
+not a means of switching between resolutions. The new adaptive-event fingerprint
+also deliberately prevents resuming old fixed-event snapshots as if the
+methods were equivalent.
+For \opt{--kozai-lidov on}, the lunar-only Jacobi value varies physically:
+use matched-resolution orbit differences and impact statistics for numerical
+convergence, not Jacobi drift. For mission-level predictions, additionally
+validate lunar libration/ephemeris frames, dated SPICE forcing and independent
+high-resolution topography.
+
+\section{Troubleshooting}
+\begin{tabularx}{\linewidth}{@{}p{.35\linewidth}X@{}}
+\toprule Symptom & Check or remedy\\\midrule
+Gravity degree unavailable & Reduce \opt{--lmax} or regenerate \pathcode{data/gravity.bin} at the desired degree.\\
+Ephemeris coverage error & Export longer time bounds; include padding for Yoshida stages and KL-normal finite differences. Check start epoch.\\
+Third-body switch conflict & Add \opt{--kozai-lidov on} or remove the external-force options. Activation is never implicit.\\
+Undated external forces & The bare on-switch uses arbitrary-phase Kepler orbits; specify a validated dated SPICE CSV.\\
+Adaptive-step failure & Inspect the trajectory and event geometry; do not silently ignore failed samples or loosen accuracy without testing.\\
+\opt{nan} Jacobi drift & Expected with third-body forcing. Refer to Section~\ref{sec:thirdbodies}.\\
+Unstable impact angle & Refine event sampling and terrain representation; bilinear-surface slopes are not smooth at cell edges.\\
+Outdated plots & Check that plotting scripts read the exact run's generated \pathcode{results/} files.\\
+\bottomrule
+\end{tabularx}
+
+\section{Developer map and change management}
+\begin{tabularx}{\linewidth}{@{}p{.35\linewidth}X@{}}
+\toprule File & Responsibility\\\midrule
+\pathcode{src/main.cpp} & CLI, simulation driver, Monte Carlo setup, event handling, metrics, CSV and log output.\\
+\pathcode{src/sph_gravity.hpp} & Normalized gravity potential and Cartesian acceleration.\\
+\pathcode{src/third_bodies.hpp} & External body selection, toy ephemeris, interpolation, differential tides, KL diagnostics.\\
+\pathcode{src/integrator.hpp} & Verlet, Yoshida-4, Dormand--Prince RK5(4).\\
+\pathcode{src/topography.hpp} & Binary grid, bilinear interpolation, local normals.\\
+\pathcode{tools/export_spice_3body.py} & NAIF kernel-to-CSV exporter.\\
+\pathcode{tests/}, \pathcode{validation/} & Automated tests and limited validation evidence.\\
+\pathcode{README.md}, \pathcode{CHANGELOG.md} & Quick start and history of numerical corrections.\\
+\pathcode{docs/LunarMasconsOrbit_Guide.tex} & Maintainable source of this PDF guide.\\
+\bottomrule
+\end{tabularx}
+
+For future changes: update the implementation and CLI defaults, extend tests, update the README and guide source, build the PDF, and record scientific changes in \pathcode{CHANGELOG.md}. Regenerate \emph{all affected science outputs} when the force model, terrain, impact definition, or integrator changes.
+
+\section*{Selected reference resources}
+\addcontentsline{toc}{section}{Selected reference resources}
+\begin{itemize}
+\item SHTOOLS, real spherical harmonic and coefficient conventions: \url{https://shtools.github.io/SHTOOLS/fortran-real-spherical-harmonics.html}.
+\item NAIF SPICE reference: \url{https://naif.jpl.nasa.gov/naif/}.
+\item NAIF frames reference: \url{https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/frames.html}.
+\end{itemize}
+\end{document}

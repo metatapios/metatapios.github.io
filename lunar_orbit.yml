@@ -1,0 +1,21 @@
+name: lunar_orbit
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy
+  - scipy
+  - h5py   # HDF5 scientific analysis and checkpoint inspection
+  - hdf5   # Native HDF5 C library for C++ output/checkpoint support
+  - matplotlib
+  - pandas
+  - pyshtools
+  - spiceypy  # optional: dated NAIF/SPICE ephemeris CSV export
+  - jupyterlab
+  - nbformat
+  # C++ toolchain for the propagator
+  - cxx-compiler
+  - cmake
+  - make
+  - libgomp   # OpenMP runtime (Linux); macOS uses libomp via cxx-compiler
