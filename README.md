@@ -42,6 +42,10 @@ ctest --test-dir build --output-on-failure
 
 CMake can build a CSV-only binary without HDF5, but the launch scripts below require the native HDF5-enabled build. OpenMP is optional at compile time, but without it the propagator runs serially.
 
+## Simple cluster launcher
+
+Edit [`cluster_setup.sh`](cluster_setup.sh) to choose cores, particles, duration, Slurm resources and numerical settings. Submit with `bash run_cluster.sh --submit`, or use `bash run_cluster.sh` inside an existing single-node allocation. Build and startup errors go to `console.log`; live progress goes to `run.log` in the selected output directory. See [cluster quick start](docs/CLUSTER_QUICKSTART.md).
+
 ## Smoke test (no dated ephemeris required)
 
 ```bash

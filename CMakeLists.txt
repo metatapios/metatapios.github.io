@@ -46,6 +46,11 @@ else()
   message(WARNING "OpenMP not found - Monte Carlo will run single-threaded")
 endif()
 
+option(MASCONS_REQUIRE_PARALLEL_HDF5 "Require OpenMP and native HDF5 for cluster runs" OFF)
+if(MASCONS_REQUIRE_PARALLEL_HDF5 AND (NOT OpenMP_CXX_FOUND OR NOT HDF5_FOUND))
+  message(FATAL_ERROR "Cluster runs require OpenMP C++ and HDF5 C development libraries")
+endif()
+
 include(CTest)
 if(BUILD_TESTING)
   add_executable(mascons_core_tests tests/core_tests.cpp)

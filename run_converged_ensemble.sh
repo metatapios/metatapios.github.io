@@ -3,6 +3,7 @@
 # only after comparing different timestep, gravity-degree and terrain settings.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT"
 N="${MASCONS_N:-100}"
 DAYS="${MASCONS_DAYS:-60}"
 LMAX="${MASCONS_LMAX:-max}"
@@ -50,6 +51,6 @@ fi
 if [[ "${MASCONS_RESUME:-0}" == 1 ]]; then FLAGS+=(--resume);fi
 mkdir -p "$OUT"
 # Preserve the resolved exact command in a reproducibility text file.
-printf '%q ' "$ROOT/build/lunarmc" "${FLAGS[@]}" > "$OUT/command.txt"
+printf '%q ' "$ROOT/build/lunarmc" "${FLAGS[@]}" "$@" > "$OUT/command.txt"
 printf '\n' >> "$OUT/command.txt"
-exec "$ROOT/build/lunarmc" "${FLAGS[@]}"
+exec "$ROOT/build/lunarmc" "${FLAGS[@]}" "$@"
